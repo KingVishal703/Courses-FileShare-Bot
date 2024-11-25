@@ -114,5 +114,5 @@ Nᴀᴍᴇ - {}</b>
 📅 Dᴀᴛᴇ : <code>{}</code>
 ⏰ Tɪᴍᴇ : <code>{}</code>
 🌐 Status: <code>Encrypted</code>
-🛠️ Bᴜɪʟᴅ Sᴛᴀᴛᴜs: <code>v1 By <b>@Tactition</b> [Sᴛᴀʙʟᴇ]</code></b>"""
+🛠️ Bᴜɪʟᴅ Sᴛᴀᴛᴜs: <code>v1 By <b>@</b> [Sᴛᴀʙʟᴇ]</code></b>"""
 
