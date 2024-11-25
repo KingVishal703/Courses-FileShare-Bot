@@ -11,7 +11,7 @@ class script(object):
     
 sɪᴢᴇ ⚙️: {file_size}
 
-Explore Our [Empire Here](https://t.me/Excellerators)</b>""" 
+Explore Our [update channel](https://t.me/+K57B1ypoxfM2NmE9)</b>""" 
 
 
 
@@ -40,11 +40,11 @@ If You Want To Remove Api Then Copy This And Send To Bot - `/api None`"""
 
 📚 ʟɪʙʀᴀʀʏ: <a href=https://docs.pyrogram.org>𝐏𝐲𝐫𝐨𝐠𝐫𝐚𝐦</a>
 
-🧑🏻‍💻 ᴅᴇᴠᴇʟᴏᴘᴇʀ: <a href=https://t.me/tactition>Tactition</a>
+🧑🏻‍💻 ᴅᴇᴠᴇʟᴏᴘᴇʀ: <a href=https://t.me/>botowner</a>
 
-👥 sᴜᴘᴘᴏʀᴛ ɢʀᴏᴜᴘ: <a href=https://t.me/TeamExcellerators>Join Here</a>
+👥 sᴜᴘᴘᴏʀᴛ ɢʀᴏᴜᴘ: <a href=https://t.me/>Join Here</a>
 
-📢 Main ᴄʜᴀɴɴᴇʟ: <a href=https://t.me/Excellerators>Excellerators</a></b>
+📢 Main ᴄʜᴀɴɴᴇʟ: <a href=https://t.me/+K57B1ypoxfM2NmE9/>update channel</a></b>
 """
 
 
