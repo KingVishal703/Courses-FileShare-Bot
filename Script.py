@@ -7,7 +7,7 @@ class script(object):
 
 
     
-    CAPTION = """<b>📂 ғɪʟᴇɴᴀᴍᴇ : {file_name}
+    CAPTION = """<b>📂 ғɪʟᴇɴᴀᴍᴇ : {@kingxhot}
     
 sɪᴢᴇ ⚙️: {file_size}
 
