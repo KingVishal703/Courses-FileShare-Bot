@@ -7,11 +7,11 @@ class script(object):
 
 
     
-    CAPTION = """<b>📂 ғɪʟᴇɴᴀᴍᴇ : {file_name}
+    CAPTION = """<b>📂 ғɪʟᴇɴᴀᴍᴇ : @KINGSXHOT {file_name}
     
 sɪᴢᴇ ⚙️: {file_size}
 
-Explore Our [Empire Here](https://t.me/)</b>""" 
+Explore Our [Empire Here](https://t.me/+K57B1ypoxfM2NmE9)</b>""" 
 
 
 
@@ -42,9 +42,9 @@ If You Want To Remove Api Then Copy This And Send To Bot - `/api None`"""
 
 🧑🏻‍💻 ᴅᴇᴠᴇʟᴏᴘᴇʀ: <a href=https://t.me/>Tactition</a>
 
-👥 sᴜᴘᴘᴏʀᴛ ɢʀᴏᴜᴘ: <a href=https://t.me/>Join Here</a>
+👥 sᴜᴘᴘᴏʀᴛ ɢʀᴏᴜᴘ: <a href=https://t.me/+K57B1ypoxfM2NmE9>Join Here</a>
 
-📢 Main ᴄʜᴀɴɴᴇʟ: <a href=https://t.me/>Excellerators</a></b>
+📢 Main ᴄʜᴀɴɴᴇʟ: <a href=https://t.me/+K57B1ypoxfM2NmE9>update channel</a></b>
 """
 
 
