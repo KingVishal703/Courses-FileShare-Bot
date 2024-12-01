@@ -75,7 +75,7 @@ First Send /clone command then follow below steps.
 
 
 
-    HELP_TXT = """<b>💢 This is a MultiPurpose Bot Developed By @tactition
+    HELP_TXT = """<b>💢 This is a MultiPurpose Bot Developed By @
 
 🔻 Its Main Purpose is To Provide You With High quality Content Like Course, Softwares And other Important Stuff
 
