@@ -23,7 +23,7 @@ AUTH_CHANNEL = [int(ch) if id_pattern.search(ch) else ch for ch in environ.get('
 PICS = (environ.get('PICS', 'https://graph.org/file/4841dcdcc8b6184847b33-db7006da59fb885b42.jpg https://graph.org/file/6cee69f25da9ae5a833e6-e96e9b204569966133.jpg https://graph.org/file/962a8ff5525ed8640afe8-5a63755db724b4bc37.jpg')).split() # Bot Start Picture
 ADMINS = [int(admin) if id_pattern.search(admin) else admin for admin in environ.get('ADMINS', '5654093580').split()]
 BOT_USERNAME = environ.get("BOT_USERNAME", "File_X_Sharing_Bot") # without @
-PORT = environ.get("PORT", "80")
+PORT = environ.get("PORT", "8080")
 
 # Clone Info :-
 CLONE_MODE = bool(environ.get('CLONE_MODE', False)) # Set True or False
