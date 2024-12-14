@@ -57,7 +57,7 @@ async def start(client, message):
                     btn.append([InlineKeyboardButton("♻️ Try Again ♻️", url=f"https://t.me/{username}?start={message.command[1]}")])
                 else:
                     btn.append([InlineKeyboardButton("♻️ Try Again ♻️", url=f"https://t.me/{username}?start=true")])
-                await message.reply_text(text=f"<b>👋 Hello {message.from_user.mention}, कृपया नीचे दीऐ गये चैनल को join करों और Try again बटन पर क्लिक करें। 🙂\n\nPlease join the channel then click on try again button. 😇</b>", reply_markup=InlineKeyboardMarkup(btn))
+                await message.reply_text(text=f"<b>👋 Hello {message.from_user.mention}, कृपया नीचे दीऐ गये चैनल को join करों और Try again बटन पर क्लिक करें। 🙂\n\n Please join the channel then click on try again button. 😇</b>", reply_markup=InlineKeyboardMarkup(btn))
                 return
         except Exception as e:
             print(e)
@@ -124,7 +124,7 @@ async def start(client, message):
                     InlineKeyboardButton("How To Open Link & Verify", url=VERIFY_TUTORIAL)
                 ]]
                 await message.reply_text(
-                    text="<b>आपने आज वेरीफाई नहीं किया है। n/n/दिन में एक बार वेरीफाई करें और 24 घंटे के लिए फ्री में वीडियो देखें।n/n/You have not verified today. n/n/ Verify once a day and watch videos free for 24 hours. !</b>",
+                    text="<b>आपने आज वेरीफाई नहीं किया है। \n\n दिन में एक बार वेरीफाई करें और 24 घंटे के लिए फ्री में वीडियो देखें। \n\n\n\n You have not verified today. Verify once a day and watch videos free for 24 hours. !</b>",
                     protect_content=True,
                     reply_markup=InlineKeyboardMarkup(btn)
                 )
@@ -236,7 +236,7 @@ async def start(client, message):
                 InlineKeyboardButton("How To Open Link & Verify", url=VERIFY_TUTORIAL)
             ]]
             await message.reply_text(
-                text="<b>आपने आज वेरीफाई नहीं किया है। n/n/दिन में एक बार वेरीफाई करें और 24 घंटे के लिए फ्री में वीडियो देखें।n/n/You have not verified today. n/n/ Verify once a day and watch videos free for 24 hours. !</b>",
+                text="<b>आपने आज वेरीफाई नहीं किया है। \n\n दिन में एक बार वेरीफाई करें और 24 घंटे के लिए फ्री में वीडियो देखें। \n\n\n\n You have not verified today. Verify once a day and watch videos free for 24 hours. !</b>",
                 protect_content=True,
                 reply_markup=InlineKeyboardMarkup(btn)
             )
@@ -306,7 +306,7 @@ async def start(client, message):
             InlineKeyboardButton("How To Open Link & Verify", url=VERIFY_TUTORIAL)
         ]]
         await message.reply_text(
-            text="<b>आपने आज वेरीफाई नहीं किया है। n/n/दिन में एक बार वेरीफाई करें और 24 घंटे के लिए फ्री में वीडियो देखें।n/n/You have not verified today. n/n/ Verify once a day and watch videos free for 24 hours. !</b>",
+            text="<b>आपने आज वेरीफाई नहीं किया है। \n\n दिन में एक बार वेरीफाई करें और 24 घंटे के लिए फ्री में वीडियो देखें। \n\n\n\n You have not verified today. Verify once a day and watch videos free for 24 hours. !</b>",
             protect_content=True,
             reply_markup=InlineKeyboardMarkup(btn)
         )
