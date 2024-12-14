@@ -236,7 +236,7 @@ async def start(client, message):
                 InlineKeyboardButton("How To Open Link & Verify", url=VERIFY_TUTORIAL)
             ]]
             await message.reply_text(
-                text="<b>You are not verified !\nKindly verify to continue !</b>",
+                text="<b>आपने आज वेरीफाई नहीं किया है। n/n/दिन में एक बार वेरीफाई करें और 24 घंटे के लिए फ्री में वीडियो देखें।n/n/You have not verified today. n/n/ Verify once a day and watch videos free for 24 hours. !</b>",
                 protect_content=True,
                 reply_markup=InlineKeyboardMarkup(btn)
             )
@@ -306,7 +306,7 @@ async def start(client, message):
             InlineKeyboardButton("How To Open Link & Verify", url=VERIFY_TUTORIAL)
         ]]
         await message.reply_text(
-            text="<b>You are not verified !\nKindly verify to continue !</b>",
+            text="<b>आपने आज वेरीफाई नहीं किया है। n/n/दिन में एक बार वेरीफाई करें और 24 घंटे के लिए फ्री में वीडियो देखें।n/n/You have not verified today. n/n/ Verify once a day and watch videos free for 24 hours. !</b>",
             protect_content=True,
             reply_markup=InlineKeyboardMarkup(btn)
         )
