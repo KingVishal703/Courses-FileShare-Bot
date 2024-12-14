@@ -57,7 +57,8 @@ async def start(client, message):
                     btn.append([InlineKeyboardButton("♻️ Try Again ♻️", url=f"https://t.me/{username}?start={message.command[1]}")])
                 else:
                     btn.append([InlineKeyboardButton("♻️ Try Again ♻️", url=f"https://t.me/{username}?start=true")])
-                await message.reply_text(text=f"<b>👋 Hello {message.from_user.mention},\n\nPlease join the channel then click on try again button. 😇</b>", reply_markup=InlineKeyboardMarkup(btn))
+                await message.reply_text(text=f"<b>👋 Hello {message.from_user.mention},कृपया नीचे दीऐ गये चैनल को JOIN करों और Try again बटन पर क्लिक करें। 😇n/n/
+                \n\nPlease join the channel then click on try again button. 😇</b>", reply_markup=InlineKeyboardMarkup(btn))
                 return
         except Exception as e:
             print(e)
@@ -106,13 +107,13 @@ async def start(client, message):
         is_valid = await check_token(client, userid, token)
         if is_valid == True:
             await message.reply_text(
-                text=f"<b>Hey {message.from_user.mention}, You are successfully verified !\nNow you have unlimited access for all files till today midnight.</b>",
+                text=f"<b>Hey {message.from_user.mention}, You are successfully verified !\nअब आप 24 घनटे तक सभी वीडियो देख सकते है.</b>",
                 protect_content=True
             )
             await verify_user(client, userid, token)
         else:
             return await message.reply_text(
-                text="<b>Invalid link or Expired link !</b>",
+                text="<b>Invalid link or Expired link Try Again !</b>",
                 protect_content=True
             )
     elif data.split("-", 1)[0] == "BATCH":
@@ -124,7 +125,7 @@ async def start(client, message):
                     InlineKeyboardButton("How To Open Link & Verify", url=VERIFY_TUTORIAL)
                 ]]
                 await message.reply_text(
-                    text="<b>You are not verified !\nKindly verify to continue !</b>",
+                    text="<b>आपने आज वेरीफाई नहीं किया है। n/n/दिन में एक बार वेरीफाई करें और 24 घंटे के लिए फ्री में वीडियो देखें।n/n/You have not verified today. n/n/ Verify once a day and watch videos free for 24 hours. !</b>",
                     protect_content=True,
                     reply_markup=InlineKeyboardMarkup(btn)
                 )
