@@ -11,7 +11,7 @@ class script(object):
     
 sɪᴢᴇ ⚙️: {file_size}
 
-Explore Our [Empire Here](https://t.me/+K57B1ypoxfM2NmE9)</b>""" 
+Explore Our [Mein Channel](https://t.me/+K57B1ypoxfM2NmE9)</b>""" 
 
 
 
@@ -109,7 +109,7 @@ ID - <code>{}</code>
 Nᴀᴍᴇ - {}</b>
 """
     RESTART_TXT = """
-<b>Empire Rᴇsᴛᴀʀᴛᴇᴅ !
+<b>Bot Rᴇsᴛᴀʀᴛᴇᴅ !
 
 📅 Dᴀᴛᴇ : <code>{}</code>
 ⏰ Tɪᴍᴇ : <code>{}</code>
