@@ -16,7 +16,7 @@ def is_enabled(value, default=False):
     return default
 
 # Bot Information
-API_ID = int(environ.get("API_ID", "0")) if environ.get("API_ID", "0").isdigit() else 0
+API_ID = int(environ.get("API_ID", "")) if environ.get("API_ID", "0").isdigit() else 0
 API_HASH = environ.get("API_HASH", "")
 BOT_TOKEN = environ.get("BOT_TOKEN", "")
 BOT_USERNAME = environ.get("BOT_USERNAME", "File_X_Sharing_Bot")  # without @
