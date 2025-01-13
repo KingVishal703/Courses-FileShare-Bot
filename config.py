@@ -78,7 +78,7 @@ if VERIFY_MODE and not (SHORTLINK_URL and SHORTLINK_API):
 
 # Website Information
 WEBSITE_URL_MODE = is_enabled(environ.get('WEBSITE_URL_MODE', "True"))
-WEBSITE_URL = environ.get("WEBSITE_URL", "https://technologygyanallinone.blogspot.com/2025/01/the-ultimate-guide-to-technology-and.html")
+WEBSITE_URL = environ.get("WEBSITE_URL", "https://world-wide.blog/top-swimmers-to-watch-at-the-paris-olympics-2024/")
 
 # File Stream Configuration
 STREAM_MODE = is_enabled(environ.get('STREAM_MODE', "True"))
