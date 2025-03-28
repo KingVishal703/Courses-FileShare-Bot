@@ -68,8 +68,8 @@ PUBLIC_FILE_STORE = is_enabled(environ.get('PUBLIC_FILE_STORE', "False"))
 
 # Verify Mode Information
 VERIFY_MODE = is_enabled(environ.get('VERIFY_MODE', "True"))
-SHORTLINK_URL = environ.get("SHORTLINK_URL", "arlinks.in")
-SHORTLINK_API = environ.get("SHORTLINK_API", "71db916b274524bfb6be9e68a52f0965a0b91347")
+SHORTLINK_URL = environ.get("SHORTLINK_URL", "techvjlink.site")
+SHORTLINK_API = environ.get("SHORTLINK_API", "369b9932a447b9ada3109b5cac48d0cfc4e67f39")
 VERIFY_TUTORIAL = environ.get("VERIFY_TUTORIAL", "https://t.me/hentai_Hanime_Update_Channel/30")
 
 # Ensure required variables for VERIFY_MODE
