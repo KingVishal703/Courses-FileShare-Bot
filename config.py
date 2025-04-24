@@ -27,7 +27,7 @@ if not API_ID or not API_HASH or not BOT_TOKEN:
     raise ValueError("API_ID, API_HASH, and BOT_TOKEN are required!")
 
 # Force subscription channel IDs
-AUTH_CHANNEL = [int(ch) if id_pattern.search(ch) else ch for ch in environ.get('AUTH_CHANNEL', '-1002021693647').split()]
+AUTH_CHANNEL = [int(ch) if id_pattern.search(ch) else ch for ch in environ.get('AUTH_CHANNEL', '-1002394633791').split()]
 
 # Bot Start Pictures
 PICS = environ.get('PICS', 
