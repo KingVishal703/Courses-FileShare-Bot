@@ -575,3 +575,32 @@ async def cb_handler(client: Client, query: CallbackQuery):
             await query.answer(f"☣something went wrong\n\n{e}", show_alert=True)
             return
 
+
+@Client.on_callback_query()
+async def callback_handler(client, query):
+    if query.data == "buy_premium":
+        buttons = InlineKeyboardMarkup(row_width=1)
+        buttons.add(
+            InlineKeyboardButton("₹10 - 7 days", callback_data="buy_7day"),
+            InlineKeyboardButton("₹30 - 1 month", callback_data="buy_1month"),
+            InlineKeyboardButton("₹60 - 3 months", callback_data="buy_3month"),
+            InlineKeyboardButton("Close", callback_data="close_buy")
+        )
+        await query.message.edit_text(
+            "Choose your premium plan:",
+            reply_markup=buttons
+        )
+    elif query.data.startswith("buy_"):
+        plan = query.data.split("_")[1]
+        payment_info = {
+            "7day": "UPI ID / QR code for 7 days plan",
+            "1month": "UPI ID / QR code for 1 month plan",
+            "3month": "UPI ID / QR code for 3 months plan"
+        }
+        await query.message.edit_text(
+            f"Please send payment of {plan} plan to this UPI:\n\n{payment_info[plan]}\n\nAfter payment, send the screenshot here.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Close", callback_data="close_buy")]])
+        )
+    elif query.data == "close_buy":
+        await query.message.delete()
+        
