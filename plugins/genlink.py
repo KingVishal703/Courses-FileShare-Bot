@@ -1,11 +1,10 @@
 import re
 from pyrogram import filters, Client, enums
 from pyrogram.errors.exceptions.bad_request_400 import ChannelInvalid, UsernameInvalid, UsernameNotModified
-from config import ADMINS, LOG_CHANNEL, PUBLIC_FILE_STORE, WEBSITE_URL, WEBSITE_URL_MODE
+from config import ADMINS, LOG_CHANNEL, PUBLIC_FILE_STORE, WEBSITE_URL, WEBSITE_URL_MODE, VERIFY_TUTORIAL
 from plugins.database import unpack_new_file_id
 from plugins.users_api import get_user, get_short_link
-from plugins.commands import premium_users # Import premium_users dict from commands.py
-import re
+from plugins.commands import premium_users, get_premium_buttons  # Import premium_users and buttons
 import os
 import json
 import base64
@@ -33,25 +32,33 @@ async def incoming_gen_link(bot, message):
     user_id = message.from_user.id
     user = await get_user(user_id)
 
-    # Check premium user
     expiry = premium_users.get(user_id)
     is_premium = expiry and expiry > datetime.now()
 
-    if WEBSITE_URL_MODE == True:
+    if WEBSITE_URL_MODE:
         share_link = f"{WEBSITE_URL}?Tech_VJ={outstr}"
     else:
         share_link = f"https://t.me/{username}?start={outstr}"
 
     if is_premium:
-        # Premium user, send original link
-        await message.reply(f"<b>⭕ Your premium access link:\n\n🔗 ORIGINAL LINK :- {share_link}</b>")
+        await message.reply(
+            f"<b>⭕ Your premium access link:\n\n🔗 ORIGINAL LINK :- {share_link}</b>",
+            reply_markup=get_premium_buttons()
+        )
     else:
-        # Non-premium user, send shortlink if available
-        if user["base_site"] and user["shortener_api"] != None:
+        if user["base_site"] and user["shortener_api"]:
             short_link = await get_short_link(user, share_link)
-            await message.reply(f"<b>⭕ Here is your link:\n\n🖇️ SHORT LINK :- {short_link}</b>")
+            await message.reply(
+                f"<b>⭕ Here is your link:\n\n🖇️ SHORT LINK :- {short_link}</b>",
+                reply_markup=get_premium_buttons()
+            )
         else:
-            await message.reply(f"<b>⭕ Here is your link:\n\n🔗 ORIGINAL LINK :- {share_link}</b>")
+            await message.reply(
+                f"<b>⭕ Here is your link:\n\n🔗 ORIGINAL LINK :- {share_link}</b>",
+                reply_markup=get_premium_buttons()
+            )
+
+# Similarly update other handlers for links with reply_markup=get_premium_buttons()
 
 @Client.on_message(filters.command(['link', 'plink']) & filters.create(allowed))
 async def gen_link_s(bot, message):
@@ -73,23 +80,31 @@ async def gen_link_s(bot, message):
     user_id = message.from_user.id
     user = await get_user(user_id)
 
-    # Check premium user
     expiry = premium_users.get(user_id)
     is_premium = expiry and expiry > datetime.now()
 
-    if WEBSITE_URL_MODE == True:
+    if WEBSITE_URL_MODE:
         share_link = f"{WEBSITE_URL}?Tech_VJ={outstr}"
     else:
         share_link = f"https://t.me/{username}?start={outstr}"
 
     if is_premium:
-        await message.reply(f"<b>⭕ Your premium access link:\n\n🔗 ORIGINAL LINK :- {share_link}</b>")
+        await message.reply(
+            f"<b>⭕ Your premium access link:\n\n🔗 ORIGINAL LINK :- {share_link}</b>",
+            reply_markup=get_premium_buttons()
+        )
     else:
-        if user["base_site"] and user["shortener_api"] != None:
+        if user["base_site"] and user["shortener_api"]:
             short_link = await get_short_link(user, share_link)
-            await message.reply(f"<b>⭕ Here is your link:\n\n🖇️ SHORT LINK :- {short_link}</b>")
+            await message.reply(
+                f"<b>⭕ Here is your link:\n\n🖇️ SHORT LINK :- {short_link}</b>",
+                reply_markup=get_premium_buttons()
+            )
         else:
-            await message.reply(f"<b>⭕ Here is your link:\n\n🔗 ORIGINAL LINK :- {share_link}</b>")
+            await message.reply(
+                f"<b>⭕ Here is your link:\n\n🔗 ORIGINAL LINK :- {share_link}</b>",
+                reply_markup=get_premium_buttons()
+            )
 
 @Client.on_message(filters.command(['batch', 'pbatch']) & filters.create(allowed))
 async def gen_link_batch(bot, message):
@@ -173,12 +188,13 @@ async def gen_link_batch(bot, message):
     file_id, ref = unpack_new_file_id(post.document.file_id)
     user_id = message.from_user.id
     user = await get_user(user_id)
-    if WEBSITE_URL_MODE == True:
+    if WEBSITE_URL_MODE:
         share_link = f"{WEBSITE_URL}?Tech_VJ=BATCH-{file_id}"
     else:
         share_link = f"https://t.me/{username}?start=BATCH-{file_id}"
-    if user["base_site"] and user["shortener_api"] != None:
+    if user["base_site"] and user["shortener_api"]:
         short_link = await get_short_link(user, share_link)
-        await sts.edit(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\nContains {og_msg} files.\n\n🖇️ sʜᴏʀᴛ ʟɪɴᴋ :- {short_link}</b>")
+        await sts.edit(f"<b>⭕ Here is your link:\n\nContains {og_msg} files.\n\n🖇️ SHORT LINK :- {short_link}</b>")
     else:
-        await sts.edit(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\nContains {og_msg} files.\n\n🔗 ᴏʀɪɢɪɴᴀʟ ʟɪɴᴋ :- {share_link}</b>")
+        await sts.edit(f"<b>⭕ Here is your link:\n\nContains {og_msg} files.\n\n🔗 ORIGINAL LINK :- {share_link}</b>")
+
