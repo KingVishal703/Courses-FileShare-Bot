@@ -4,13 +4,13 @@ from pyrogram.errors.exceptions.bad_request_400 import ChannelInvalid, UsernameI
 from config import ADMINS, LOG_CHANNEL, PUBLIC_FILE_STORE, WEBSITE_URL, WEBSITE_URL_MODE
 from plugins.database import unpack_new_file_id
 from plugins.users_api import get_user, get_short_link
+from plugins.commands import premium_users # Import premium_users dict from commands.py
 import re
 import os
 import json
 import base64
 import logging
-
-
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -22,7 +22,6 @@ async def allowed(_, __, message):
         return True
     return False
 
-
 @Client.on_message((filters.document | filters.video | filters.audio) & filters.private & filters.create(allowed))
 async def incoming_gen_link(bot, message):
     username = (await bot.get_me()).username
@@ -33,16 +32,26 @@ async def incoming_gen_link(bot, message):
     outstr = base64.urlsafe_b64encode(string.encode("ascii")).decode().strip("=")
     user_id = message.from_user.id
     user = await get_user(user_id)
+
+    # Check premium user
+    expiry = premium_users.get(user_id)
+    is_premium = expiry and expiry > datetime.now()
+
     if WEBSITE_URL_MODE == True:
         share_link = f"{WEBSITE_URL}?Tech_VJ={outstr}"
     else:
         share_link = f"https://t.me/{username}?start={outstr}"
-    if user["base_site"] and user["shortener_api"] != None:
-        short_link = await get_short_link(user, share_link)
-        await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\n🖇️ sʜᴏʀᴛ ʟɪɴᴋ :- {short_link}</b>")
+
+    if is_premium:
+        # Premium user, send original link
+        await message.reply(f"<b>⭕ Your premium access link:\n\n🔗 ORIGINAL LINK :- {share_link}</b>")
     else:
-        await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\n🔗 ᴏʀɪɢɪɴᴀʟ ʟɪɴᴋ :- {share_link}</b>")
-        
+        # Non-premium user, send shortlink if available
+        if user["base_site"] and user["shortener_api"] != None:
+            short_link = await get_short_link(user, share_link)
+            await message.reply(f"<b>⭕ Here is your link:\n\n🖇️ SHORT LINK :- {short_link}</b>")
+        else:
+            await message.reply(f"<b>⭕ Here is your link:\n\n🔗 ORIGINAL LINK :- {share_link}</b>")
 
 @Client.on_message(filters.command(['link', 'plink']) & filters.create(allowed))
 async def gen_link_s(bot, message):
@@ -50,31 +59,37 @@ async def gen_link_s(bot, message):
     replied = message.reply_to_message
     if not replied:
         return await message.reply('Reply to a message to get a shareable link.')
+
     file_type = replied.media
     if file_type not in [enums.MessageMediaType.VIDEO, enums.MessageMediaType.AUDIO, enums.MessageMediaType.DOCUMENT]:
-        return await message.reply("**ʀᴇᴘʟʏ ᴛᴏ ᴀ sᴜᴘᴘᴏʀᴛᴇᴅ ᴍᴇᴅɪᴀ**")
+        return await message.reply("Reply to a supported media")
     if message.has_protected_content and message.chat.id not in ADMINS:
         return await message.reply("okDa")
 
-    
     file_id, ref = unpack_new_file_id((getattr(replied, file_type.value)).file_id)
     string = 'filep_' if message.text.lower().strip() == "/plink" else 'file_'
     string += file_id
     outstr = base64.urlsafe_b64encode(string.encode("ascii")).decode().strip("=")
     user_id = message.from_user.id
     user = await get_user(user_id)
+
+    # Check premium user
+    expiry = premium_users.get(user_id)
+    is_premium = expiry and expiry > datetime.now()
+
     if WEBSITE_URL_MODE == True:
         share_link = f"{WEBSITE_URL}?Tech_VJ={outstr}"
     else:
         share_link = f"https://t.me/{username}?start={outstr}"
-    if user["base_site"] and user["shortener_api"] != None:
-        short_link = await get_short_link(user, share_link)
-        await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\n🖇️ sʜᴏʀᴛ ʟɪɴᴋ :- {short_link}</b>")
+
+    if is_premium:
+        await message.reply(f"<b>⭕ Your premium access link:\n\n🔗 ORIGINAL LINK :- {share_link}</b>")
     else:
-        await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\n🔗 ᴏʀɪɢɪɴᴀʟ ʟɪɴᴋ :- {share_link}</b>")
-        
-
-
+        if user["base_site"] and user["shortener_api"] != None:
+            short_link = await get_short_link(user, share_link)
+            await message.reply(f"<b>⭕ Here is your link:\n\n🖇️ SHORT LINK :- {short_link}</b>")
+        else:
+            await message.reply(f"<b>⭕ Here is your link:\n\n🔗 ORIGINAL LINK :- {share_link}</b>")
 
 @Client.on_message(filters.command(['batch', 'pbatch']) & filters.create(allowed))
 async def gen_link_batch(bot, message):
@@ -85,7 +100,7 @@ async def gen_link_batch(bot, message):
     if len(links) != 3:
         return await message.reply("Use correct format.\nExample /batch https://t.me/ https://t.me/.")
     cmd, first, last = links
-    regex = re.compile("(https://)?(t\.me/|telegram\.me/|telegram\.dog/)(c/)?(\d+|[a-zA-Z_0-9]+)/(\d+)$")
+    regex = re.compile("(https://)?(t.me/|telegram.me/|telegram.dog/)(c/)?(\d+|[a-zA-Z_0-9]+)/(\d+)$")
     match = regex.match(first)
     if not match:
         return await message.reply('Invalid link')
@@ -94,8 +109,6 @@ async def gen_link_batch(bot, message):
     if f_chat_id.isnumeric():
         f_chat_id = int(("-100" + f_chat_id))
 
-
-    
     match = regex.match(last)
     if not match:
         return await message.reply('Invalid link')
@@ -115,15 +128,12 @@ async def gen_link_batch(bot, message):
     except Exception as e:
         return await message.reply(f'Errors - {e}')
 
+    sts = await message.reply("ɢᴇɴᴇʀᴀᴛɪɴɢ ʟɪɴᴋ ғᴏʀ ʏᴏᴜʀ ᴍᴇssᴀɢᴇ.\nᴛʜɪs ᴍᴀʏ ᴛᴀᴋᴇ ᴛɪᴍᴇ ᴅᴇᴘᴇɴᴅɪɴɢ ᴜᴘᴏɴ ɴᴜᴍʙᴇʀ ᴏғ ᴍᴇssᴀɢᴇs")
 
-    
-    sts = await message.reply("**ɢᴇɴᴇʀᴀᴛɪɴɢ ʟɪɴᴋ ғᴏʀ ʏᴏᴜʀ ᴍᴇssᴀɢᴇ**.\n**ᴛʜɪs ᴍᴀʏ ᴛᴀᴋᴇ ᴛɪᴍᴇ ᴅᴇᴘᴇɴᴅɪɴɢ ᴜᴘᴏɴ ɴᴜᴍʙᴇʀ ᴏғ ᴍᴇssᴀɢᴇs**")
-
-    FRMT = "**ɢᴇɴᴇʀᴀᴛɪɴɢ ʟɪɴᴋ...**\n**ᴛᴏᴛᴀʟ ᴍᴇssᴀɢᴇs:** {total}\n**ᴅᴏɴᴇ:** {current}\n**ʀᴇᴍᴀɪɴɪɴɢ:** {rem}\n**sᴛᴀᴛᴜs:** {sts}"
+    FRMT = "ɢᴇɴᴇʀᴀᴛɪɴɢ ʟɪɴᴋ...\nᴛᴏᴛᴀʟ ᴍᴇssᴀɢᴇs: {total}\nᴅᴏɴᴇ: {current}\nʀᴇᴍᴀɪɴɪɴɢ: {rem}\nsᴛᴀᴛᴜs: {sts}"
 
     outlist = []
 
-    # file store without db channel
     og_msg = 0
     tot = 0
     async for msg in bot.iter_messages(f_chat_id, l_msg_id, f_msg_id):
@@ -131,7 +141,6 @@ async def gen_link_batch(bot, message):
         if msg.empty or msg.service:
             continue
         if not msg.media:
-            # only media messages supported.
             continue
         try:
             file_type = msg.media
@@ -147,16 +156,16 @@ async def gen_link_batch(bot, message):
                     "size": file.file_size,
                     "protect": cmd.lower().strip() == "/pbatch",
                 }
-
-                og_msg +=1
-                outlist.append(file)
-        except:
-            pass
-        if not og_msg % 20:
-            try:
-                await sts.edit(FRMT.format(total=l_msg_id-f_msg_id, current=tot, rem=((l_msg_id-f_msg_id) - tot), sts="Saving Messages"))
-            except:
+                og_msg +=1  
+                outlist.append(file)  
+        except:  
+            pass  
+        if not og_msg % 20:  
+            try:  
+                await sts.edit(FRMT.format(total=l_msg_id-f_msg_id, current=tot, rem=((l_msg_id-f_msg_id) - tot), sts="Saving Messages"))  
+            except:  
                 pass
+
     with open(f"batchmode_{message.from_user.id}.json", "w+") as out:
         json.dump(outlist, out)
     post = await bot.send_document(LOG_CHANNEL, f"batchmode_{message.from_user.id}.json", file_name="Batch.json", caption="⚠️Generated for filestore.")
@@ -170,7 +179,6 @@ async def gen_link_batch(bot, message):
         share_link = f"https://t.me/{username}?start=BATCH-{file_id}"
     if user["base_site"] and user["shortener_api"] != None:
         short_link = await get_short_link(user, share_link)
-        await sts.edit(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\nContains `{og_msg}` files.\n\n🖇️ sʜᴏʀᴛ ʟɪɴᴋ :- {short_link}</b>")
+        await sts.edit(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\nContains {og_msg} files.\n\n🖇️ sʜᴏʀᴛ ʟɪɴᴋ :- {short_link}</b>")
     else:
-        await sts.edit(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\nContains `{og_msg}` files.\n\n🔗 ᴏʀɪɢɪɴᴀʟ ʟɪɴᴋ :- {share_link}</b>")
-        
+        await sts.edit(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\nContains {og_msg} files.\n\n🔗 ᴏʀɪɢɪɴᴀʟ ʟɪɴᴋ :- {share_link}</b>")
