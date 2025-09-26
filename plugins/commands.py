@@ -18,6 +18,10 @@ import json
 import base64
 from urllib.parse import quote_plus
 from TechVJ.utils.file_properties import get_name, get_hash, get_media_file_size
+from datetime import datetime, timedelta
+from config import ADMINS  # Aapka admin list config se
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+
 logger = logging.getLogger(__name__)
 
 BATCH_FILES = {}
@@ -44,6 +48,62 @@ def get_size(size):
         i += 1
         size /= 1024.0
     return "%.2f %s" % (size, units[i])
+
+
+
+# Premium users dictionary (Aap apne database ka code bhi likh sakte hain)
+premium_users = {}  # user_id: expiry_datetime
+
+def is_admin(user_id):
+    return user_id in ADMINS
+
+def add_premium(user_id: int, days: int):
+    expiry_date = datetime.now() + timedelta(days=days)
+    premium_users[user_id] = expiry_date
+
+def remove_premium(user_id: int):
+    if user_id in premium_users:
+        del premium_users[user_id]
+
+def check_premium(user_id: int) -> bool:
+    expiry = premium_users.get(user_id)
+    if expiry and expiry > datetime.now():
+        return True
+    return False
+
+
+@bot.message_handler(commands=['addpremium'])
+def handle_addpremium(message):
+    if not is_admin(message.from_user.id):
+        bot.reply_to(message, "Sirf admin hi is command ka use kar sakte hain.")
+        return
+    try:
+        parts = message.text.split()
+        user_id = int(parts[1])
+        duration_map = {'7day': 7, '1month': 30, '3month': 90}
+        duration = duration_map.get(parts[2].lower())
+        if not duration:
+            bot.reply_to(message, "Duration galat hai. 7day, 1month ya 3month use karein.")
+            return
+        add_premium(user_id, duration)
+        bot.reply_to(message, f"User {user_id} ko {parts[2]} ke liye premium mila.")
+    except Exception:
+        bot.reply_to(message, "Usage: /addpremium <user_id> <7day|1month|3month>")
+
+
+@bot.message_handler(commands=['removepremium'])
+def handle_removepremium(message):
+    if not is_admin(message.from_user.id):
+        bot.reply_to(message, "Sirf admin hi is command ka use kar sakte hain.")
+        return
+    try:
+        parts = message.text.split()
+        user_id = int(parts[1])
+        remove_premium(user_id)
+        bot.reply_to(message, f"User {user_id} ka premium hata diya gaya hai.")
+    except Exception:
+        bot.reply_to(message, "Usage: /removepremium <user_id>")
+        
 
 
 @Client.on_message(filters.command("start") & filters.incoming)
