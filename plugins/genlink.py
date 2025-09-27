@@ -1,14 +1,15 @@
 import re
-from pyrogram import filters, Client, enums
-from pyrogram.errors.exceptions.bad_request_400 import ChannelInvalid, UsernameInvalid, UsernameNotModified
-from config import ADMINS, LOG_CHANNEL, PUBLIC_FILE_STORE, WEBSITE_URL, WEBSITE_URL_MODE, VERIFY_TUTORIAL
-from plugins.database import unpack_new_file_id
-from plugins.users_api import get_user, get_short_link
-from plugins.commands import premium_users, get_premium_buttons  # Import premium_users and buttons
 import os
 import json
 import base64
 import logging
+from pyrogram import filters, Client, enums
+from pyrogram.errors.exceptions.bad_request_400 import ChannelInvalid, UsernameInvalid, UsernameNotModified
+from config import ADMINS, LOG_CHANNEL, PUBLIC_FILE_STORE, WEBSITE_URL, WEBSITE_URL_MODE
+from plugins.database import unpack_new_file_id
+from plugins.users_api import get_user, get_short_link
+from plugins.dbusers import db
+from plugins.commands import get_premium_buttons
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -26,14 +27,13 @@ async def incoming_gen_link(bot, message):
     username = (await bot.get_me()).username
     file_type = message.media
     file_id, ref = unpack_new_file_id((getattr(message, file_type.value)).file_id)
-    string = 'file_'
-    string += file_id
+    string = 'file_' + file_id
     outstr = base64.urlsafe_b64encode(string.encode("ascii")).decode().strip("=")
     user_id = message.from_user.id
     user = await get_user(user_id)
 
-    expiry = premium_users.get(user_id)
-    is_premium = expiry and expiry > datetime.now()
+    # DB premium status check
+    is_premium = await db.check_premium(user_id)
 
     if WEBSITE_URL_MODE:
         share_link = f"{WEBSITE_URL}?Tech_VJ={outstr}"
@@ -58,8 +58,6 @@ async def incoming_gen_link(bot, message):
                 reply_markup=get_premium_buttons()
             )
 
-# Similarly update other handlers for links with reply_markup=get_premium_buttons()
-
 @Client.on_message(filters.command(['link', 'plink']) & filters.create(allowed))
 async def gen_link_s(bot, message):
     username = (await bot.get_me()).username
@@ -80,8 +78,7 @@ async def gen_link_s(bot, message):
     user_id = message.from_user.id
     user = await get_user(user_id)
 
-    expiry = premium_users.get(user_id)
-    is_premium = expiry and expiry > datetime.now()
+    is_premium = await db.check_premium(user_id)
 
     if WEBSITE_URL_MODE:
         share_link = f"{WEBSITE_URL}?Tech_VJ={outstr}"
@@ -171,14 +168,14 @@ async def gen_link_batch(bot, message):
                     "size": file.file_size,
                     "protect": cmd.lower().strip() == "/pbatch",
                 }
-                og_msg +=1  
-                outlist.append(file)  
-        except:  
-            pass  
-        if not og_msg % 20:  
-            try:  
-                await sts.edit(FRMT.format(total=l_msg_id-f_msg_id, current=tot, rem=((l_msg_id-f_msg_id) - tot), sts="Saving Messages"))  
-            except:  
+                og_msg += 1
+                outlist.append(file)
+        except:
+            pass
+        if not og_msg % 20:
+            try:
+                await sts.edit(FRMT.format(total=l_msg_id-f_msg_id, current=tot, rem=((l_msg_id-f_msg_id) - tot), sts="Saving Messages"))
+            except:
                 pass
 
     with open(f"batchmode_{message.from_user.id}.json", "w+") as out:
@@ -188,13 +185,17 @@ async def gen_link_batch(bot, message):
     file_id, ref = unpack_new_file_id(post.document.file_id)
     user_id = message.from_user.id
     user = await get_user(user_id)
+    is_premium = await db.check_premium(user_id)
     if WEBSITE_URL_MODE:
         share_link = f"{WEBSITE_URL}?Tech_VJ=BATCH-{file_id}"
     else:
         share_link = f"https://t.me/{username}?start=BATCH-{file_id}"
-    if user["base_site"] and user["shortener_api"]:
-        short_link = await get_short_link(user, share_link)
-        await sts.edit(f"<b>⭕ Here is your link:\n\nContains {og_msg} files.\n\n🖇️ SHORT LINK :- {short_link}</b>")
+    if is_premium:
+        await sts.edit(f"<b>⭕ Here is your premium batch link:\n\nContains {og_msg} files.\n\n🔗 ORIGINAL LINK :- {share_link}</b>", reply_markup=get_premium_buttons())
     else:
-        await sts.edit(f"<b>⭕ Here is your link:\n\nContains {og_msg} files.\n\n🔗 ORIGINAL LINK :- {share_link}</b>")
-
+        if user["base_site"] and user["shortener_api"]:
+            short_link = await get_short_link(user, share_link)
+            await sts.edit(f"<b>⭕ Here is your link:\n\nContains {og_msg} files.\n\n🖇️ SHORT LINK :- {short_link}</b>", reply_markup=get_premium_buttons())
+        else:
+            await sts.edit(f"<b>⭕ Here is your link:\n\nContains {og_msg} files.\n\n🔗 ORIGINAL LINK :- {share_link}</b>", reply_markup=get_premium_buttons())
+    
