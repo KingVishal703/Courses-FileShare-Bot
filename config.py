@@ -66,6 +66,14 @@ BATCH_FILE_CAPTION = environ.get("BATCH_FILE_CAPTION", CUSTOM_FILE_CAPTION)
 # Public File Store
 PUBLIC_FILE_STORE = is_enabled(environ.get('PUBLIC_FILE_STORE', "False"))
 
+SHORTENER_APIS = [
+    {"base_site": "shortner1.com", "api_key": "api_key_1"},
+    {"base_site": "shortner2.com", "api_key": "api_key_2"},
+    {"base_site": "shortner3.com", "api_key": "api_key_3"},
+    # Aap jitne chahein add kar sakte hain
+]
+
+
 # Verify Mode Information
 VERIFY_MODE = is_enabled(environ.get('VERIFY_MODE', "False"))
 SHORTLINK_URL = environ.get("SHORTLINK_URL", "jiolink.net")
