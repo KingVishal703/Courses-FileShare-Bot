@@ -66,12 +66,6 @@ BATCH_FILE_CAPTION = environ.get("BATCH_FILE_CAPTION", CUSTOM_FILE_CAPTION)
 # Public File Store
 PUBLIC_FILE_STORE = is_enabled(environ.get('PUBLIC_FILE_STORE', "False"))
 
-SHORTENER_APIS = [
-    {"base_site": "shortner1.com", "api_key": "api_key_1"},
-    {"base_site": "shortner2.com", "api_key": "api_key_2"},
-    {"base_site": "shortner3.com", "api_key": "api_key_3"},
-    # Aap jitne chahein add kar sakte hain
-]
 
 
 # Verify Mode Information
@@ -83,6 +77,30 @@ VERIFY_TUTORIAL = environ.get("VERIFY_TUTORIAL", "https://t.me/hentai_Hanime_Upd
 # Ensure required variables for VERIFY_MODE
 if VERIFY_MODE and not (SHORTLINK_URL and SHORTLINK_API):
     raise ValueError("VERIFY_MODE is enabled, but SHORTLINK_URL or SHORTLINK_API is missing.")
+
+# config.py
+
+# Multiple shortlink providers for random rotation
+SHORTENER_APIS = [
+    {"base_site": "shortner1.com", "api_key": "apikey1"},
+    {"base_site": "shortner2.com", "api_key": "apikey2"},
+    {"base_site": "shortner3.com", "api_key": "apikey3"},
+]
+
+# UPI / premium payment info
+PAYMENT_INFO = {
+    "7day": "upiid@bank\nQR code or link for 7 days subscription",
+    "1month": "upiid@bank\nQR code or link for 1 month subscription",
+    "3month": "upiid@bank\nQR code or link for 3 months subscription",
+}
+
+# Your website url and flags
+WEBSITE_URL = "https://yourdomain.com"
+WEBSITE_URL_MODE = True  # If true, use WEBSITE_URL based links; else use telegram bot deep links
+
+
+# More config as needed...
+
 
 # Website Information
 WEBSITE_URL_MODE = is_enabled(environ.get('WEBSITE_URL_MODE', "False"))
