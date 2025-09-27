@@ -82,9 +82,9 @@ if VERIFY_MODE and not (SHORTLINK_URL and SHORTLINK_API):
 
 # Multiple shortlink providers for random rotation
 SHORTENER_APIS = [
-    {"base_site": "shortner1.com", "api_key": "apikey1"},
-    {"base_site": "shortner2.com", "api_key": "apikey2"},
-    {"base_site": "shortner3.com", "api_key": "apikey3"},
+    {"base_site": "arolinks.com", "api_key": "07fd488b04eb3d854b8dcc64f7d43c4be189133f"},
+    {"base_site": "shortxlinks.com", "api_key": "c97dff111e4017c7a0d0f911d567536805cc34c5"},
+    {"base_site": "dashboard.smallshorts.com", "api_key": "377565808079977170de7cef039b5db76c49bf42"},
 ]
 
 # UPI / premium payment info
