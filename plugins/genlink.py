@@ -3,19 +3,16 @@ import os
 import json
 import base64
 import logging
-from pyrogram import Client, filters, enums
+from pyrogram import filters, Client, enums
 from pyrogram.errors.exceptions.bad_request_400 import ChannelInvalid, UsernameInvalid, UsernameNotModified
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from config import ADMINS, LOG_CHANNEL, PUBLIC_FILE_STORE, WEBSITE_URL, WEBSITE_URL_MODE, VERIFY_TUTORIAL
+from config import ADMINS, LOG_CHANNEL, PUBLIC_FILE_STORE, WEBSITE_URL, WEBSITE_URL_MODE
 from plugins.database import unpack_new_file_id
 from plugins.users_api import get_user, get_short_link
-from plugins.dbusers import db
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-# ---------------- Helper ----------------
 async def allowed(_, __, message):
     if PUBLIC_FILE_STORE:
         return True
@@ -23,74 +20,58 @@ async def allowed(_, __, message):
         return True
     return False
 
-def get_premium_buttons():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("How To Open", url=VERIFY_TUTORIAL)],
-        [InlineKeyboardButton("Buy Premium", callback_data="buy_premium")]
-    ])
+
+# ------------------ Double Encode Helper ------------------ #
+async def double_encode_link(file_id, client, user_is_premium, user):
+    raw_string = f"file_{file_id}"
+    encoded = base64.urlsafe_b64encode(raw_string.encode()).decode().strip("=")
+    bot_username = (await client.get_me()).username
+
+    start_link = f"https://t.me/{bot_username}?start={encoded}"
+
+    if user_is_premium:
+        return start_link
+
+    # Non-premium users ke liye shortlink
+    short_link = await get_short_link(user, start_link)
+    double_encoded = base64.urlsafe_b64encode(short_link.encode()).decode().strip("=")
+    final_link = f"https://t.me/{bot_username}?start={double_encoded}"
+    return final_link
+# --------------------------------------------------------- #
 
 
-# ---------------- Single File Upload ----------------
 @Client.on_message((filters.document | filters.video | filters.audio) & filters.private & filters.create(allowed))
 async def incoming_gen_link(bot, message):
-    username = (await bot.get_me()).username
     file_type = message.media
-    file_id, ref = unpack_new_file_id((getattr(message, file_type.value)).file_id)
-    
-    string = 'file_' + file_id
-    outstr = base64.urlsafe_b64encode(string.encode("ascii")).decode().strip("=")
-    
+    file_id, ref = unpack_new_file_id(getattr(message, file_type.value).file_id)
     user_id = message.from_user.id
     user = await get_user(user_id)
-    is_premium = await db.check_premium(user_id)
-    
-    share_link = (f"{WEBSITE_URL}?Tech_VJ={outstr}" if WEBSITE_URL_MODE 
-                  else f"https://t.me/{username}?start={outstr}")
-    
-    if is_premium:
-        await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ premium direct link:\n{share_link}</b>", reply_markup=get_premium_buttons())
-    elif user["base_site"] and user["shortener_api"]:
-        short_link = await get_short_link(user, share_link)
-        await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ shortlink:\n{short_link}</b>", reply_markup=get_premium_buttons())
-    else:
-        await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ original link:\n{share_link}</b>", reply_markup=get_premium_buttons())
+    user_is_premium = user.get("is_premium", False)  # User premium status
+
+    final_link = await double_encode_link(file_id, bot, user_is_premium, user)
+    await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\n🔗 ᴏʀɪɢɪɴᴀʟ/ᴅᴏᴜʙʟᴇ ʟɪɴᴋ :- {final_link}</b>")
 
 
-# ---------------- Reply / Command Link ----------------
 @Client.on_message(filters.command(['link', 'plink']) & filters.create(allowed))
 async def gen_link_s(bot, message):
-    username = (await bot.get_me()).username
     replied = message.reply_to_message
     if not replied:
         return await message.reply('Reply to a message to get a shareable link.')
-    
+
     file_type = replied.media
     if file_type not in [enums.MessageMediaType.VIDEO, enums.MessageMediaType.AUDIO, enums.MessageMediaType.DOCUMENT]:
         return await message.reply("**ʀᴇᴘʟʏ ᴛᴏ ᴀ sᴜᴘᴘᴏʀᴛᴇᴅ ᴍᴇᴅɪᴀ**")
     if message.has_protected_content and message.chat.id not in ADMINS:
-        return await message.reply("Protected content cannot be linked.")
+        return await message.reply("okDa")
 
-    file_id, ref = unpack_new_file_id((getattr(replied, file_type.value)).file_id)
-    string = 'filep_' if message.text.lower().strip() == "/plink" else 'file_'
-    string += file_id
-    outstr = base64.urlsafe_b64encode(string.encode("ascii")).decode().strip("=")
-
+    file_id, ref = unpack_new_file_id(getattr(replied, file_type.value).file_id)
     user_id = message.from_user.id
     user = await get_user(user_id)
-    is_premium = await db.check_premium(user_id)
+    user_is_premium = user.get("is_premium", False)
 
-    share_link = (f"{WEBSITE_URL}?Tech_VJ={outstr}" if WEBSITE_URL_MODE 
-                  else f"https://t.me/{username}?start={outstr}")
-
-    if is_premium:
-        await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ premium direct link:\n{share_link}</b>", reply_markup=get_premium_buttons())
-    elif user["base_site"] and user["shortener_api"]:
-        short_link = await get_short_link(user, share_link)
-        await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ shortlink:\n{short_link}</b>", reply_markup=get_premium_buttons())
-    else:
-        await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ original link:\n{share_link}</b>", reply_markup=get_premium_buttons())
-
-
+    final_link = await double_encode_link(file_id, bot, user_is_premium, user)
+    await message.reply(f"<b>⭕ ʜᴇʀᴇ ɪs ʏᴏᴜʀ ʟɪɴᴋ:\n\n🔗 ᴏʀɪɢɪɴᴀʟ/ᴅᴏᴜʙʟᴇ ʟɪɴᴋ :- {final_link}</b>")
+    
 # ---------------- Batch Link Generation ----------------
 @Client.on_message(filters.command(['batch', 'pbatch']) & filters.create(allowed))
 async def gen_link_batch(bot, message):
@@ -175,3 +156,4 @@ async def gen_link_batch(bot, message):
         await sts.edit(f"<b>⭕ ʜᴇʀᴇ ɪs your batch shortlink containing `{og_msg}` files:\n{short_link}</b>", reply_markup=get_premium_buttons())
     else:
         await sts.edit(f"<b>⭕ ʜᴇʀᴇ ɪs your original batch link containing `{og_msg}` files:\n{share_link}</b>", reply_markup=get_premium_buttons())
+
