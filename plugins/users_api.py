@@ -3,7 +3,7 @@ import aiohttp
 from motor.motor_asyncio import AsyncIOMotorClient
 from config import DB_URI, DB_NAME, SHORTENER_APIS
 
-# MongoDB client
+# ---------------- MongoDB Setup ----------------
 client = AsyncIOMotorClient(DB_URI)
 db = client[DB_NAME]
 col = db["users"]
@@ -26,13 +26,13 @@ async def get_user(user_id: int):
 
 
 async def update_user_info(user_id: int, value: dict):
-    """Update user info."""
+    """Update user info in DB."""
     user_id = int(user_id)
     await col.update_one({"user_id": user_id}, {"$set": value})
 
 
 async def delete_user(user_id: int):
-    """Delete user."""
+    """Delete a user from DB."""
     await col.delete_one({"user_id": int(user_id)})
 
 
@@ -50,22 +50,26 @@ async def get_all_users():
 async def get_short_link(user, url: str):
     """
     Generate short link using multiple providers.
-    If none work, return original URL.
+    Returns original URL if all providers fail.
     """
     providers = SHORTENER_APIS.copy()
     random.shuffle(providers)  # Randomize provider order
+
     async with aiohttp.ClientSession() as session:
         for provider in providers:
             try:
                 api_key = provider.get("api_key")
                 base_site = provider.get("base_site")
-                async with session.get(f"https://{base_site}/api?api={api_key}&url={url}", timeout=10) as resp:
+                async with session.get(
+                    f"https://{base_site}/api?api={api_key}&url={url}",
+                    timeout=10
+                ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         if data.get("status") == "success":
                             return data.get("shortenedUrl")
-            except Exception as e:
-                # Ignore errors and try next provider
+            except Exception:
                 continue
-    # If all fail, return original URL
+
+    # If all providers fail, return original URL
     return url
