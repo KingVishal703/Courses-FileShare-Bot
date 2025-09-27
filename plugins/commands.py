@@ -83,7 +83,7 @@ async def start(client, message):
             await message.reply("Invalid start parameter.")
             return
 
-        # Premium file handling
+        # === Single Premium File Handling ===
         if decoded_str.startswith("file_"):
             file_id = decoded_str[5:]
             is_premium = await db.check_premium(user_id)
@@ -101,6 +101,31 @@ async def start(client, message):
                 share_link = f"{WEBSITE_URL}?Tech_VJ={start_arg}" if WEBSITE_URL_MODE else f"https://t.me/{username}?start={start_arg}"
                 short_link = await get_short_link(user, share_link) if user["base_site"] and user["shortener_api"] else share_link
                 await message.reply(f"Your download link:\n{short_link}", reply_markup=get_premium_buttons())
+            return
+
+        # === Batch Handling ===
+        elif decoded_str.startswith("BATCH-"):
+            batch_id = decoded_str[6:]
+            # Yahan batch file list ya delivery logic
+            batch_files = await get_batch_files(batch_id)  # aapko function define karna hoga jo batch id se files return kare
+            if not batch_files:
+                await message.reply("Batch file not found.")
+                return
+
+            is_premium = await db.check_premium(user_id)
+            if is_premium:
+                for f in batch_files:
+                    f_caption = f.caption or f.file_name
+                    await client.send_cached_media(user_id, file_id=f.file_id, caption=f_caption)
+            else:
+                user = await get_user(user_id)
+                links = []
+                for f in batch_files:
+                    start_encoded = base64.urlsafe_b64encode(f"file_{f.file_id}".encode()).decode().rstrip("=")
+                    share_link = f"{WEBSITE_URL}?Tech_VJ={start_encoded}" if WEBSITE_URL_MODE else f"https://t.me/{username}?start={start_encoded}"
+                    short_link = await get_short_link(user, share_link) if user["base_site"] and user["shortener_api"] else share_link
+                    links.append(f"{f.file_name}: {short_link}")
+                await message.reply("Your batch download links:\n\n" + "\n".join(links), reply_markup=get_premium_buttons())
             return
 
     # Default start message
@@ -123,7 +148,7 @@ async def start(client, message):
         photo=random.choice(PICS),
         caption=script.START_TXT.format(message.from_user.mention, me2),
         reply_markup=reply_markup
-    )
+            )
 
 # --------------------- Premium Management Commands ---------------------
 @Client.on_message(filters.command("addpremium") & filters.user(ADMINS))
