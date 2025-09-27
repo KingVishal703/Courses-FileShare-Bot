@@ -174,7 +174,6 @@ async def shortener_api_handler(client, m):
         await update_user_info(user_id, {"shortener_api": api})
         await m.reply(f"Shortener API updated to: {api}")
 
-# Callback query handler
 @Client.on_callback_query()
 async def cb_handler(client, query: CallbackQuery):
     if query.data == "close_data":
@@ -184,8 +183,15 @@ async def cb_handler(client, query: CallbackQuery):
         if query.data == "about":
             buttons = [[InlineKeyboardButton('Hᴏᴍᴇ', callback_data='start'),
                         InlineKeyboardButton('🔒 Close', callback_data='close_data')]]
-            await client.edit_message_media(query.message.chat.id, query.message.id, InputMediaPhoto(random.choice(PICS)))
-            await query.message.edit_text(script.ABOUT_TXT.format((await client.get_me()).mention), reply_markup=InlineKeyboardMarkup(buttons))
+            await client.edit_message_media(
+                chat_id=query.message.chat.id,
+                message_id=query.message.message_id,
+                media=InputMediaPhoto(random.choice(PICS))
+            )
+            await query.message.edit_text(
+                script.ABOUT_TXT.format((await client.get_me()).mention),
+                reply_markup=InlineKeyboardMarkup(buttons)
+            )
         elif query.data == "start":
             buttons = [
                 [InlineKeyboardButton('🔍 Support Group', url='https://t.me/'),
@@ -193,10 +199,24 @@ async def cb_handler(client, query: CallbackQuery):
                 [InlineKeyboardButton('💁‍♀️ Info', callback_data='help'),
                  InlineKeyboardButton('😊 About', callback_data='about')]
             ]
-            await client.edit_message_media(query.message.chat.id, query.message.id, InputMediaPhoto(random.choice(PICS)))
-            await query.message.edit_text(script.START_TXT.format(query.from_user.mention, (await client.get_me()).username),
-                                          reply_markup=InlineKeyboardMarkup(buttons))
+            await client.edit_message_media(
+                chat_id=query.message.chat.id,
+                message_id=query.message.message_id,
+                media=InputMediaPhoto(random.choice(PICS))
+            )
+            await query.message.edit_text(
+                script.START_TXT.format(query.from_user.mention, (await client.get_me()).username),
+                reply_markup=InlineKeyboardMarkup(buttons)
+            )
         elif query.data == "clone":
             buttons = [[InlineKeyboardButton('Hᴏᴍᴇ', callback_data='start'),
                         InlineKeyboardButton('🔒 Close', callback_data='close_data')]]
-            await client.edit_message_media(query.message.chat.id
+            await client.edit_message_media(
+                chat_id=query.message.chat.id,
+                message_id=query.message.message_id,
+                media=InputMediaPhoto(random.choice(PICS))
+            )
+            await query.message.edit_text(
+                "Clone feature is under development.",
+                reply_markup=InlineKeyboardMarkup(buttons)
+)
