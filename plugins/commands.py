@@ -18,79 +18,14 @@ import base64
 from urllib.parse import quote_plus
 from TechVJ.utils.file_properties import get_name, get_hash, get_media_file_size
 from datetime import datetime, timedelta
-from config import ADMINS  # Aapka admin list config se
+from config import ADMINS
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 logger = logging.getLogger(__name__)
-
 BATCH_FILES = {}
-
-# Premium users dictionary
-premium_users = {}  # user_id: expiry_datetime
 
 def is_admin(user_id):
     return user_id in ADMINS
-
-def add_premium(user_id: int, days: int):
-    expiry_date = datetime.now() + timedelta(days=days)
-    premium_users[user_id] = expiry_date
-
-def remove_premium(user_id: int):
-    if user_id in premium_users:
-        del premium_users[user_id]
-
-def check_premium(user_id: int) -> bool:
-    expiry = premium_users.get(user_id)
-    if expiry and expiry > datetime.now():
-        return True
-    return False
-
-
-@bot.message_handler(commands=['addpremium'])
-def handle_addpremium(message):
-    if not is_admin(message.from_user.id):
-        bot.reply_to(message, "Sirf admin hi is command ka use kar sakte hain.")
-        return
-    try:
-        parts = message.text.split()
-        user_id = int(parts[1])
-        duration_map = {'7day': 7, '1month': 30, '3month': 90}
-        duration = duration_map.get(parts[2].lower())
-        if not duration:
-            bot.reply_to(message, "Duration galat hai. 7day, 1month ya 3month use karein.")
-            return
-        add_premium(user_id, duration)
-        bot.reply_to(message, f"User {user_id} ko {parts[2]} ke liye premium mila.")
-    except Exception:
-        bot.reply_to(message, "Usage: /addpremium <user_id> <7day|1month|3month>")
-
-
-@bot.message_handler(commands=['removepremium'])
-def handle_removepremium(message):
-    if not is_admin(message.from_user.id):
-        bot.reply_to(message, "Sirf admin hi is command ka use kar sakte hain.")
-        return
-    try:
-        parts = message.text.split()
-        user_id = int(parts[1])
-        remove_premium(user_id)
-        bot.reply_to(message, f"User {user_id} ka premium hata diya gaya hai.")
-    except Exception:
-        bot.reply_to(message, "Usage: /removepremium <user_id>")
-        
-
-
-async def is_subscribed(bot, query, channel):
-    btn = []
-    for id in channel:
-        chat = await bot.get_chat(int(id))
-        try:
-            await bot.get_chat_member(id, query.from_user.id)
-        except UserNotParticipant:
-            btn.append([InlineKeyboardButton(f'Join {chat.title}', url=chat.invite_link)])
-        except Exception as e:
-            pass
-    return btn
 
 def get_size(size):
     units = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB"]
@@ -109,6 +44,48 @@ def get_premium_buttons():
     )
     return keyboard
 
+@bot.message_handler(commands=['addpremium'])
+def handle_addpremium(message):
+    if not is_admin(message.from_user.id):
+        bot.reply_to(message, "Sirf admin hi is command ka use kar sakte hain.")
+        return
+    try:
+        parts = message.text.split()
+        user_id = int(parts[1])
+        duration_map = {'7day':7, '1month':30, '3month':90}
+        days = duration_map.get(parts[2].lower())
+        if not days:
+            bot.reply_to(message, "Duration galat hai. 7day, 1month, 3month use karein.")
+            return
+        expiry_dt = datetime.now() + timedelta(days=days)
+        asyncio.create_task(db.set_premium(user_id, expiry_dt))
+        bot.reply_to(message, f"User {user_id} ko {parts[2]} ke liye premium diya gaya hai.")
+    except Exception as e:
+        bot.reply_to(message, f"Usage: /addpremium <user_id> <7day|1month|3month>\nError: {e}")
+
+@bot.message_handler(commands=['removepremium'])
+def handle_removepremium(message):
+    if not is_admin(message.from_user.id):
+        bot.reply_to(message, "Sirf admin hi is command ka use kar sakte hain.")
+        return
+    try:
+        user_id = int(message.text.split()[1])
+        asyncio.create_task(db.remove_premium(user_id))
+        bot.reply_to(message, f"User {user_id} ka premium hata diya gaya hai.")
+    except Exception as e:
+        bot.reply_to(message, f"Usage: /removepremium <user_id>\nError: {e}")
+
+async def is_subscribed(bot, query, channel):
+    btn = []
+    for id in channel:
+        chat = await bot.get_chat(int(id))
+        try:
+            await bot.get_chat_member(id, query.from_user.id)
+        except UserNotParticipant:
+            btn.append([InlineKeyboardButton(f'Join {chat.title}', url=chat.invite_link)])
+        except Exception as e:
+            pass
+    return btn
 
 @Client.on_message(filters.command("start") & filters.incoming)
 async def start(client, message):
@@ -121,7 +98,10 @@ async def start(client, message):
                     btn.append([InlineKeyboardButton("♻️ Try Again ♻️", url=f"<https://t.me/{username}?start={message.command>[1]}")])
                 else:
                     btn.append([InlineKeyboardButton("♻️ Try Again ♻️", url=f"https://t.me/{username}?start=true")])
-                await message.reply_text(text=f"<b>👋 Hello {message.from_user.mention}, कृपया नीचे दिए गए चैनल को join करें और Try again बटन पर क्लिक करें। 🙂\n\n Please join the channel then click on try again button. 😇</b>", reply_markup=InlineKeyboardMarkup(btn))
+                await message.reply_text(
+                    text=f"<b>👋 Hello {message.from_user.mention}, कृपया नीचे दिए गए चैनल को join करें और Try again बटन पर क्लिक करें। 🙂\n\n Please join the channel then click on try again button. 😇</b>",
+                    reply_markup=InlineKeyboardMarkup(btn)
+                )
                 return
         except Exception as e:
             print(e)
@@ -138,7 +118,7 @@ async def start(client, message):
             InlineKeyboardButton('💁‍♀️ Info', callback_data='help'),
             InlineKeyboardButton('😊 About', callback_data='about')
         ]]
-        if CLONE_MODE == True:
+        if CLONE_MODE:
             buttons.append([InlineKeyboardButton('🤖 Create Your Own Clone Bot', callback_data='clone')])
         reply_markup = InlineKeyboardMarkup(buttons)
         me2 = (await client.get_me()).mention
@@ -148,11 +128,6 @@ async def start(client, message):
             reply_markup=reply_markup
         )
         return
-
-    # The rest of your existing message processing code here...
-    # Attach get_premium_buttons() when sending any file/link share messages
-    # For example: await message.reply("Your link here", reply_markup=get_premium_buttons())
-
 
 @Client.on_callback_query()
 async def cb_handler(client: Client, query: CallbackQuery):
@@ -187,6 +162,6 @@ async def cb_handler(client: Client, query: CallbackQuery):
         )
     elif data == "close_buy":
         await query.message.delete()
-
-    # Add your additional callback query handlers below here as needed
-
+    # For premium check everywhere else in your bot use:
+    # is_premium = await db.check_premium(message.from_user.id)
+    
