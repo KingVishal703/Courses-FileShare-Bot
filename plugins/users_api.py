@@ -9,20 +9,27 @@ client = AsyncIOMotorClient(DB_URI)
 database = client[DB_NAME]
 col = database["users"]
 
-async def get_short_link(user, link):
-    api_key = user.get("shortener_api")
-    base_site = user.get("base_site")
-    if not api_key or not base_site:
-        return link
-    try:
-        response = requests.get(f"https://{base_site}/api?api={api_key}&url={link}", timeout=10)
-        data = response.json()
-        if data.get("status") == "success" and response.status_code == 200:
-            return data.get("shortenedUrl", link)
-        else:
-            return link
-    except Exception:
-        return link
+import random
+import aiohttp
+from config import SHORTENER_APIS
+
+async def get_short_link(user, url):
+    providers = SHORTENER_APIS.copy()
+    random.shuffle(providers)  # Randomize order, har baar alag try kare
+    for api in providers:
+        try:
+            async with aiohttp.ClientSession() as session:
+                api_key = api.get("api_key")
+                base_site = api.get("base_site")
+                resp = await session.get(f"https://{base_site}/api?api={api_key}&url={url}", timeout=10)
+                resp_json = await resp.json()
+                if resp.status == 200 and resp_json.get("status") == "success":
+                    return resp_json.get("shortenedUrl")
+        except Exception:
+            continue
+    # Sab fail ho jaaye to original link wapas
+    return url
+    
 
 async def get_user(user_id):
     user_id = int(user_id)
