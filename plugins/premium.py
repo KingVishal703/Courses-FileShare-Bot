@@ -90,11 +90,11 @@ async def is_premium(user_id: int) -> bool:
         return False
     now = await _now_utc()
     return expires_at > now
------------------------
+#-----------------------
 
-Pyrogram command handlers
+#Pyrogram command handlers
 
------------------------
+#-----------------------
 
 The plugin uses class decorator style used in the repo (Client.on_message)
 
@@ -160,9 +160,9 @@ from plugins.premium import _cleanup_expired_task
 
 asyncio.create_task(_cleanup_expired_task())
 
------------------------
+#-----------------------
 
-End of plugin
+#End of plugin
 
------------------------
+#-----------------------
 
