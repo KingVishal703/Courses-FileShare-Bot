@@ -78,29 +78,6 @@ VERIFY_TUTORIAL = environ.get("VERIFY_TUTORIAL", "https://t.me/hentai_Hanime_Upd
 if VERIFY_MODE and not (SHORTLINK_URL and SHORTLINK_API):
     raise ValueError("VERIFY_MODE is enabled, but SHORTLINK_URL or SHORTLINK_API is missing.")
 
-# config.py
-
-# Multiple shortlink providers for random rotation
-SHORTENER_APIS = [
-    {"base_site": "arolinks.com", "api_key": "07fd488b04eb3d854b8dcc64f7d43c4be189133f"},
-    {"base_site": "shortxlinks.com", "api_key": "c97dff111e4017c7a0d0f911d567536805cc34c5"},
-    {"base_site": "dashboard.smallshorts.com", "api_key": "377565808079977170de7cef039b5db76c49bf42"},
-]
-
-# UPI / premium payment info
-PAYMENT_INFO = {
-    "7day": "upiid@bank\nQR code or link for 7 days subscription",
-    "1month": "upiid@bank\nQR code or link for 1 month subscription",
-    "3month": "upiid@bank\nQR code or link for 3 months subscription",
-}
-
-# Your website url and flags
-WEBSITE_URL = "https://yourdomain.com"
-WEBSITE_URL_MODE = True  # If true, use WEBSITE_URL based links; else use telegram bot deep links
-
-
-# More config as needed...
-
 
 # Website Information
 WEBSITE_URL_MODE = is_enabled(environ.get('WEBSITE_URL_MODE', "False"))
