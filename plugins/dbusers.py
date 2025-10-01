@@ -1,63 +1,63 @@
-
 import motor.motor_asyncio
-from config import DB_NAME, DB_URI
-
-DATABASE_NAME = DB_NAME
-DATABASE_URI = DB_URI
-
+from datetime import datetime
+from config import *
 
 class Database:
-    
-    def __init__(self, uri, database_name):
-        self._client = motor.motor_asyncio.AsyncIOMotorClient(uri)
-        self.db = self._client[database_name]
+    def __init__(self, uri, databasename):
+        self.client = motor.motor_asyncio.AsyncIOMotorClient(uri)
+        self.db = self.client[databasename]
         self.col = self.db.users
         self.grp = self.db.groups
 
+    def newuser(self, id, name):
+        return dict(id=id, name=name, banstatus=dict(isbanned=False, banreason=""))
 
-    def new_user(self, id, name):
-        return dict(
-            id = id,
-            name = name,
-            ban_status=dict(
-                is_banned=False,
-                ban_reason="",
-            ),
-        )
+    def newgroup(self, id, title):
+        return dict(id=id, title=title, chatstatus=dict(isdisabled=False, reason=""))
 
-    def new_group(self, id, title):
-        return dict(
-            id = id,
-            title = title,
-            chat_status=dict(
-                is_disabled=False,
-                reason="",
-            ),
-        )
-
-    
-    async def add_user(self, id, name):
-        user = self.new_user(id, name)
+    async def adduser(self, id, name):
+        user = self.newuser(id, name)
         await self.col.insert_one(user)
 
-    
-    async def is_user_exist(self, id):
-        user = await self.col.find_one({'id':int(id)})
+    async def isuserexist(self, id):
+        user = await self.col.find_one({"id": int(id)})
         return bool(user)
 
-
-    async def total_users_count(self):
+    async def totaluserscount(self):
         count = await self.col.count_documents({})
         return count
 
-    
-    async def get_all_users(self):
-        return self.col.find({})
+    async def getallusers(self):
+        cursor = self.col.find({})
+        return cursor
 
+    async def deleteuser(self, userid):
+        await self.col.delete_many({"id": int(userid)})
 
+    # Premium user functions added below
 
-    async def delete_user(self, user_id):
-        await self.col.delete_many({'id': int(user_id)})
+    async def add_premium_user(self, user_id: int, expiry_date: datetime):
+        await self.col.update_one(
+            {"id": user_id},
+            {"$set": {"premium": True, "premium_expiry": expiry_date}},
+            upsert=True,
+        )
 
+    async def remove_premium_user(self, user_id: int):
+        await self.col.update_one(
+            {"id": user_id},
+            {"$set": {"premium": False, "premium_expiry": None}},
+        )
 
-db = Database(DATABASE_URI, DATABASE_NAME)
+    async def check_premium(self, user_id: int):
+        user = await self.col.find_one({"id": user_id})
+        if user and user.get("premium") and user.get("premium_expiry"):
+            if user["premium_expiry"] > datetime.utcnow():
+                return True, user["premium_expiry"]
+            else:
+                # Premium expired, remove status
+                await self.remove_premium_user(user_id)
+                return False, None
+        return False, None
+
+db = Database(DBURI, DBNAME)
