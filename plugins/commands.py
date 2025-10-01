@@ -46,6 +46,35 @@ def get_size(size):
     return "%.2f %s" % (size, units[i])
 
 
+@Client.on_message(filters.command("add_premium") & filters.user(ADMINS))
+async def add_premium(client, message):
+    try:
+        args = message.text.split()
+        user_id = int(args[1])
+        days = int(args[2])
+        expiry_date = datetime.utcnow() + timedelta(days=days)
+        await db.add_premium_user(user_id, expiry_date)
+        await message.reply(f"User {user_id} ko {days} din ke liye premium mila.")
+    except Exception as e:
+        await message.reply(f"Error: {e}")
+
+@Client.on_message(filters.command("remove_premium") & filters.user(ADMINS))
+async def remove_premium(client, message):
+    user_id = int(message.text.split()[1])
+    await db.remove_premium_user(user_id)
+    await message.reply(f"User {user_id} ka premium hata diya gaya.")
+
+@Client.on_message(filters.command("check_premium") & filters.user(ADMINS))
+async def check_premium(client, message):
+    user_id = int(message.text.split()[1])
+    is_premium, expire_date = await db.check_premium(user_id)
+    if is_premium:
+        await message.reply(f"User {user_id} premium hai till {expire_date}.")
+    else:
+        await message.reply(f"User {user_id} premium nahi hai.")
+        
+
+
 @Client.on_message(filters.command("start") & filters.incoming)
 async def start(client, message):
     if AUTH_CHANNEL:
@@ -399,47 +428,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
             parse_mode=enums.ParseMode.HTML
         )
 
-
-    from datetime import datetime, timedelta
-from plugins.dbusers import db  # import your database interface
-from pyrogram import filters, Client
-from config import ADMINS  # Your admins list
-
-@Client.on_message(filters.command("add_premium") & filters.user(ADMINS))
-async def add_premium(client, message):
-    try:
-        args = message.text.split()
-        user_id = int(args[1])
-        days = int(args[2])
-        expiry_date = datetime.utcnow() + timedelta(days=days)
-        await db.add_premium_user(user_id, expiry_date)
-        await message.reply(f"User {user_id} ko {days} din ke liye premium diya gaya.")
-    except Exception as e:
-        await message.reply(f"Error: {e}")
-
-@Client.on_message(filters.command("remove_premium") & filters.user(ADMINS))
-async def remove_premium(client, message):
-    try:
-        user_id = int(message.text.split()[1])
-        await db.remove_premium_user(user_id)
-        await message.reply(f"User {user_id} ka premium hata diya gaya.")
-    except Exception as e:
-        await message.reply(f"Error: {e}")
-
-@Client.on_message(filters.command("check_premium") & filters.user(ADMINS))
-async def check_premium(client, message):
-    try:
-        user_id = int(message.text.split()[1])
-        is_premium, expiry = await db.check_premium(user_id)
-        if is_premium:
-            await message.reply(f"User {user_id} premium hai. Expiry: {expiry}")
-        else:
-            await message.reply(f"User {user_id} premium nahi hai.")
-    except Exception as e:
-        await message.reply(f"Error: {e}")
-
     
-
     
     elif query.data == "start":
         buttons = [
