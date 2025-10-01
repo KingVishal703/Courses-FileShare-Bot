@@ -19,7 +19,7 @@ except ImportError:
     )
 
     # ADMINS expected as list of ints or single int; fallback to env comma-separated
-    adm = os.environ.get("ADMINS", "")
+    adm = os.environ.get("ADMINS", "5654093580")
     if adm:
         ADMINS = [int(x.strip()) for x in adm.split(",") if x.strip()]
     else:
