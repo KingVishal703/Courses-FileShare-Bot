@@ -46,300 +46,63 @@ def get_size(size):
     return "%.2f %s" % (size, units[i])
 
 
-@Client.on_message(filters.command("start") & filters.incoming)
-async def start(client, message):
-    if AUTH_CHANNEL:
-        try:
-            btn = await is_subscribed(client, message, AUTH_CHANNEL)
-            if btn:
-                username = (await client.get_me()).username
-                if message.command[1]:
-                    btn.append([InlineKeyboardButton("♻️ Try Again ♻️", url=f"https://t.me/{username}?start={message.command[1]}")])
-                else:
-                    btn.append([InlineKeyboardButton("♻️ Try Again ♻️", url=f"https://t.me/{username}?start=true")])
-                await message.reply_text(text=f"<b>👋 Hello {message.from_user.mention}, कृपया नीचे दीऐ गये चैनल को join करों और Try again बटन पर क्लिक करें। 🙂\n\n Please join the channel then click on try again button. 😇</b>", reply_markup=InlineKeyboardMarkup(btn))
-                return
-        except Exception as e:
-            print(e)
-    username = (await client.get_me()).username
-    if not await db.is_user_exist(message.from_user.id):
-        await db.add_user(message.from_user.id, message.from_user.first_name)
-        await client.send_message(LOG_CHANNEL, script.LOG_TEXT.format(message.from_user.id, message.from_user.mention))
-    if len(message.command) != 2:
-        buttons = [
-            # [
-            # InlineKeyboardButton('💝 sᴜʙsᴄʀɪʙᴇ ᴍʏ ʏᴏᴜᴛᴜʙᴇ ᴄʜᴀɴɴᴇʟ', url='https://youtube.com/@Tech_VJ')
-            # ],
-            [
-            InlineKeyboardButton('🔍 sᴜᴘᴘᴏʀᴛ ɢʀᴏᴜᴘ', url='https://t.me/'),
-            InlineKeyboardButton('🤖 ᴜᴘᴅᴀᴛᴇ ᴄʜᴀɴɴᴇʟ', url='https://t.me/+K57B1ypoxfM2NmE9')
-            ],[
-            InlineKeyboardButton('💁‍♀️ Info', callback_data='help'),
-            InlineKeyboardButton('😊 ᴀʙᴏᴜᴛ', callback_data='about')
-        ]]
-        if CLONE_MODE == True:
-            buttons.append([InlineKeyboardButton('🤖 ᴄʀᴇᴀᴛᴇ ʏᴏᴜʀ ᴏᴡɴ ᴄʟᴏɴᴇ ʙᴏᴛ', callback_data='clone')])
-        reply_markup = InlineKeyboardMarkup(buttons)
-        me2 = (await client.get_me()).mention
-        await message.reply_photo(
-            photo=random.choice(PICS),
-            caption=script.START_TXT.format(message.from_user.mention, me2),
-            reply_markup=reply_markup
-        )
-        return
+import asyncio
+from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from plugins.premium import is_premium
+from plugins.shortlink import make_shortlink
+from plugins.database import get_file_details  # adjust according to your repo
 
-    
-    data = message.command[1]
-    try:
-        pre, file_id = data.split('_', 1)
-    except:
-        file_id = data
-        pre = ""
-    if data.split("-", 1)[0] == "verify":
-        userid = data.split("-", 2)[1]
-        token = data.split("-", 3)[2]
-        if str(message.from_user.id) != str(userid):
-            return await message.reply_text(
-                text="<b>Invalid link or Expired link !</b>",
-                protect_content=True
+# Tutorial aur Buy Premium ke URLs config me dalna
+TUTORIAL_URL = "https://t.me/YourHelpChannel"
+BUY_PREMIUM_URL = "https://t.me/YourSupportBot"
+PREVIEW_IMAGE = "https://cdn-icons-png.flaticon.com/512/545/545674.png"
+
+@Client.on_message(filters.command("start") & filters.private)
+async def start_handler(client, message):
+    user_id = message.from_user.id
+    args = message.text.split(" ", 1)
+
+    # Agar user ne start ke saath file_id diya hai
+    if len(args) > 1:
+        file_id = args[1]
+        file_data = await get_file_details(file_id)   # DB se file nikaalna
+        if not file_data:
+            await message.reply_text("❌ File not found.")
+            return
+
+        # Premium check
+        if await is_premium(user_id):
+            # Agar premium hai to direct file
+            await client.send_cached_media(
+                chat_id=message.chat.id,
+                file_id=file_data["file_id"],
+                caption=file_data.get("caption", "Here is your file ✅")
             )
-        is_valid = await check_token(client, userid, token)
-        if is_valid == True:
-            await message.reply_text(
-                text=f"<b>Hey {message.from_user.mention}, You are successfully verified !\nअब आप 24 घनटे तक सभी वीडियो देख सकते है.</b>",
-                protect_content=True
-            )
-            await verify_user(client, userid, token)
         else:
-            return await message.reply_text(
-                text="<b>Invalid link or Expired link Try Again !</b>",
-                protect_content=True
+            # Free user ke liye shortlink generate
+            original_url = f"https://t.me/{client.me.username}?start={file_id}"
+            short_url = await make_shortlink(original_url)
+
+            await message.reply_photo(
+                photo=PREVIEW_IMAGE,
+                caption="⚡ Get your file by completing the step below",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔗 Open Link", url=short_url)],
+                    [InlineKeyboardButton("📖 Tutorial", url=TUTORIAL_URL)],
+                    [InlineKeyboardButton("💎 Buy Premium", url=BUY_PREMIUM_URL)]
+                ])
             )
-    elif data.split("-", 1)[0] == "BATCH":
-        try:
-            if not await check_verification(client, message.from_user.id) and VERIFY_MODE == True:
-                btn = [[
-                    InlineKeyboardButton("Verify", url=await get_token(client, message.from_user.id, f"https://telegram.me/{username}?start="))
-                ],[
-                    InlineKeyboardButton("How To Open Link & Verify", url=VERIFY_TUTORIAL)
-                ]]
-                await message.reply_text(
-                    text="<b>आपने आज वेरीफाई नहीं किया है। \n\n दिन में एक बार वेरीफाई करें और 24 घंटे के लिए फ्री में वीडियो देखें। \n\n\n\n You have not verified today. Verify once a day and watch videos free for 24 hours. !</b>",
-                    protect_content=True,
-                    reply_markup=InlineKeyboardMarkup(btn)
-                )
-                return
-        except Exception as e:
-            return await message.reply_text(f"**Error - {e}**")
-        sts = await message.reply("**🔺 ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ**")
-        file_id = data.split("-", 1)[1]
-        msgs = BATCH_FILES.get(file_id)
-        if not msgs:
-            file = await client.download_media(file_id)
-            try: 
-                with open(file) as file_data:
-                    msgs=json.loads(file_data.read())
-            except:
-                await sts.edit("FAILED")
-                return await client.send_message(LOG_CHANNEL, "UNABLE TO OPEN FILE.")
-            os.remove(file)
-            BATCH_FILES[file_id] = msgs
-            
-        filesarr = []
-        for msg in msgs:
-            title = msg.get("title")
-            size=get_size(int(msg.get("size", 0)))
-            f_caption=msg.get("caption", "")
-            if BATCH_FILE_CAPTION:
-                try:
-                    f_caption=BATCH_FILE_CAPTION.format(file_name= '' if title is None else title, file_size='' if size is None else size, file_caption='' if f_caption is None else f_caption)
-                except Exception as e:
-                    logger.exception(e)
-                    f_caption=f_caption
-            if f_caption is None:
-                f_caption = f"{title}"
-            try:
-                if STREAM_MODE == True:
-                    # Create the inline keyboard button with callback_data
-                    user_id = message.from_user.id
-                    username =  message.from_user.mention 
-
-                    log_msg = await client.send_cached_media(
-                        chat_id=LOG_CHANNEL,
-                        file_id=msg.get("file_id"),
-                    )
-                    fileName = {quote_plus(get_name(log_msg))}
-                    stream = f"{URL}watch/{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
-                    download = f"{URL}{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
- 
-                    await log_msg.reply_text(
-                        text=f"•• ʟɪɴᴋ ɢᴇɴᴇʀᴀᴛᴇᴅ ꜰᴏʀ ɪᴅ #{user_id} \n•• ᴜꜱᴇʀɴᴀᴍᴇ : {username} \n\n•• ᖴᎥᒪᗴ Nᗩᗰᗴ : {fileName}",
-                        quote=True,
-                        disable_web_page_preview=True,
-                        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🚀 Fast Download 🚀", url=download),  # we download Link
-                                                            InlineKeyboardButton('🖥️ Stream online 🖥️', url=stream)]])  # web stream Link
-                    )
-                if STREAM_MODE == True:
-                    button = [[
-                        InlineKeyboardButton("🚀 Fast Download 🚀", url=download),  # we download Link
-                        InlineKeyboardButton('🖥️ Stream online 🖥️', url=stream)
-                    ],[
-                        InlineKeyboardButton("• ᴡᴀᴛᴄʜ ɪɴ ᴡᴇʙ ᴀᴘᴘ •", web_app=WebAppInfo(url=stream))
-                    ]]
-                    reply_markup=InlineKeyboardMarkup(button)
-                else:
-                    reply_markup = None
-                msg = await client.send_cached_media(
-                    chat_id=message.from_user.id,
-                    file_id=msg.get("file_id"),
-                    caption=f_caption,
-                    protect_content=msg.get('protect', False),
-                    reply_markup=reply_markup
-                )
-                filesarr.append(msg)
-                
-            except FloodWait as e:
-                await asyncio.sleep(e.x)
-                logger.warning(f"Floodwait of {e.x} sec.")
-                msg = await client.send_cached_media(
-                    chat_id=message.from_user.id,
-                    file_id=msg.get("file_id"),
-                    caption=f_caption,
-                    protect_content=msg.get('protect', False),
-                    reply_markup=InlineKeyboardMarkup(button)
-                )
-                filesarr.append(msg)
-            except Exception as e:
-                logger.warning(e, exc_info=True)
-                continue
-            await asyncio.sleep(1) 
-        await sts.delete()
-        if AUTO_DELETE_MODE == True:
-            k = await client.send_message(chat_id = message.from_user.id, text=f"<b><u>❗️IMPORTANT❗️</u></b>\n\n This File will be deleted Within <b><u>{AUTO_DELETE} Minutes</u>  <i></b>(Due to Copyright Issues)</i>.\n\n<b>So,You Are Requested to Forward The File to Saved Messages </b>")
-            await asyncio.sleep(AUTO_DELETE_TIME)
-            for x in filesarr:
-                try:
-                    await x.delete()
-                except:
-                    pass
-            await k.edit_text("<b>File deleted successfully. You are Always wellcomed to Request Again</b>")
-        return
-
-
-    files_ = await get_file_details(file_id)           
-    if not files_:
-        pre, file_id = ((base64.urlsafe_b64decode(data + "=" * (-len(data) % 4))).decode("ascii")).split("_", 1)
-        if not await check_verification(client, message.from_user.id) and VERIFY_MODE == True:
-            btn = [[
-                InlineKeyboardButton("Verify", url=await get_token(client, message.from_user.id, f"https://telegram.me/{username}?start="))
-            ],[
-                InlineKeyboardButton("How To Open Link & Verify", url=VERIFY_TUTORIAL)
-            ]]
-            await message.reply_text(
-                text="<b>आपने आज वेरीफाई नहीं किया है। \n\n दिन में एक बार वेरीफाई करें और 24 घंटे के लिए फ्री में वीडियो देखें। \n\n\n\n You have not verified today. Verify once a day and watch videos free for 24 hours. !</b>",
-                protect_content=True,
-                reply_markup=InlineKeyboardMarkup(btn)
-            )
-            return
-        try:
-            msg = await client.send_cached_media(
-                chat_id=message.from_user.id,
-                file_id=file_id,
-                protect_content=True if pre == 'filep' else False,  
-            )
-            filetype = msg.media
-            file = getattr(msg, filetype.value)
-            title = ' '.join(filter(lambda x: not x.startswith('[') and not x.startswith('@'), file.file_name.split()))
-            size=get_size(file.file_size)
-            f_caption = f"<code>{title}</code>"
-            if CUSTOM_FILE_CAPTION:
-                try:
-                    f_caption=CUSTOM_FILE_CAPTION.format(file_name= '' if title is None else title, file_size='' if size is None else size, file_caption='')
-                except:
-                    return
-            
-            await msg.edit_caption(f_caption)
-            if STREAM_MODE == True:
-                g = await msg.reply_text(
-                    text=f"•• Generate a fast download or stream link for your file by clicking the button below 👇",
-                    quote=True,
-                    disable_web_page_preview=True,
-                    reply_markup=InlineKeyboardMarkup(
-                        [
-                            [
-                                InlineKeyboardButton('🚀 Fast Download / Stream Online🖥️', callback_data=f'generate_stream_link:{file_id}')
-                            ]
-                        ]
-                    )
-                )
-            if AUTO_DELETE_MODE == True:
-                k = await client.send_message(chat_id = message.from_user.id, text=f"<b><u>❗️IMPORTANT❗️</u></b>\n\n This File will be deleted Within <b><u>{AUTO_DELETE} Minutes</u>  <i></b>(Due to Copyright Issues)</i>.\n\n<b>So,You Are Requested to Forward The File to Saved Messages </b>")
-                await asyncio.sleep(AUTO_DELETE_TIME)
-                try:
-                    await msg.delete()
-                except:
-                    pass
-                await g.delete()
-                await k.edit_text("<b>File deleted successfully. You are Always wellcomed to Request Again</b>")
-            return
-        except:
-            pass
-        return await message.reply('No such file exist.')
-
-    
-    files = files_[0]
-    title = files.file_name
-    size=get_size(files.file_size)
-    f_caption=files.caption
-    if CUSTOM_FILE_CAPTION:
-        try:
-            f_caption=CUSTOM_FILE_CAPTION.format(file_name= '' if title is None else title, file_size='' if size is None else size, file_caption='' if f_caption is None else f_caption)
-        except Exception as e:
-            logger.exception(e)
-            f_caption=f_caption
-    if f_caption is None:
-        f_caption = f"{files.file_name}"
-    if not await check_verification(client, message.from_user.id) and VERIFY_MODE == True:
-        btn = [[
-            InlineKeyboardButton("Verify", url=await get_token(client, message.from_user.id, f"https://telegram.me/{username}?start="))
-        ],[
-            InlineKeyboardButton("How To Open Link & Verify", url=VERIFY_TUTORIAL)
-        ]]
+    else:
+        # Normal /start command (without file)
         await message.reply_text(
-            text="<b>आपने आज वेरीफाई नहीं किया है। \n\n दिन में एक बार वेरीफाई करें और 24 घंटे के लिए फ्री में वीडियो देखें। \n\n\n\n You have not verified today. Verify once a day and watch videos free for 24 hours. !</b>",
-            protect_content=True,
-            reply_markup=InlineKeyboardMarkup(btn)
+            "👋 Welcome to File Store Bot!\n\n"
+            "📂 Send me any file and I will give you a sharable link.\n\n"
+            "🆓 Free users: Get files via shortlink.\n"
+            "💎 Premium users: Get direct downloads without ads."
         )
-        return
-    x = await client.send_cached_media(
-        chat_id=message.from_user.id,
-        file_id=file_id,
-        caption=f_caption,
-        protect_content=True if pre == 'filep' else False,
-    )
-    if STREAM_MODE == True:
-        g = await x.reply_text(
-            text=f"**••ɢᴇɴᴇʀᴀᴛᴇ ᴏɴʟɪɴᴇ sᴛʀᴇᴀᴍ ʟɪɴᴋ ᴏғ ʏᴏᴜʀ ғɪʟᴇ & ғᴀsᴛ ᴅᴏᴡɴʟᴏᴀᴅ ʟɪɴᴋ By ᴄʟɪᴄᴋɪɴɢ ᴏɴ ʙᴇʟᴏᴡ ʙᴜᴛᴛᴏɴ 👇**",
-            quote=True,
-            disable_web_page_preview=True,
-            reply_markup=InlineKeyboardMarkup(
-                [
-                    [
-                        InlineKeyboardButton('🚀 Fast Download / Watch Online🖥️', callback_data=f'generate_stream_link:{file_id}')
-                    ]
-                ]
-            )
-        )
-    if AUTO_DELETE_MODE == True:
-        k = await client.send_message(chat_id = message.from_user.id, text=f"<b><u>❗️IMPORTANT❗️</u></b>\n\n This File will be deleted Within <b><u>{AUTO_DELETE} Minutes</u>  <i></b>(Due to Copyright Issues)</i>.\n\n<b>So,You Are Requested to Forward The File to Saved Messages </b>")
-        await asyncio.sleep(AUTO_DELETE_TIME)
-        try:
-            await x.delete()
-        except:
-            pass
-        await k.edit_text("<b> File deleted successfully!</b>")       
-        
-
+                    
+                
 
 @Client.on_message(filters.command('api') & filters.private)
 async def shortener_api_handler(client, m: Message):
