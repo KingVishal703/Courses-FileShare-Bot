@@ -1,4 +1,4 @@
-# plugins/Premium.py
+# plugins/premium.py
 
 import os
 import asyncio
@@ -12,13 +12,10 @@ from pyrogram.types import Message
 try:
     from config import MONGO_DB_URL, ADMINS
 except ImportError:
-    # MongoDB URL fallback to environment variable
     MONGO_DB_URL = os.environ.get(
         "MONGO_DB_URL",
         "mongodb+srv://bevag22776:LTYSLtfLKt2KCMnD@cluster0.6z90l.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
     )
-
-    # ADMINS expected as list of ints or single int; fallback to env comma-separated
     adm = os.environ.get("ADMINS", "5654093580")
     if adm:
         ADMINS = [int(x.strip()) for x in adm.split(",") if x.strip()]
@@ -30,16 +27,18 @@ if not MONGO_DB_URL:
 
 # MongoDB connection
 mongo = AsyncIOMotorClient(MONGO_DB_URL)
-db = mongo.get_default_database()  # Uses DB from connection string
+db = mongo.get_default_database()
 premium_coll = db.get_collection("premium_users")
 
 
-# Utility function to get current UTC datetime
+#-----------------------
+# Utility functions
+#-----------------------
+
 async def _now_utc():
     return datetime.now(timezone.utc)
 
 
-# Add or extend premium for a user
 async def add_premium(user_id: int, days: int) -> datetime:
     """Add or extend premium for user_id by days. Returns expiry datetime (UTC)."""
     now = await _now_utc()
@@ -63,14 +62,12 @@ async def add_premium(user_id: int, days: int) -> datetime:
     return new_expiry
 
 
-# Remove premium for a user
 async def remove_premium(user_id: int) -> bool:
     """Remove premium record for user_id. Returns True if removed or existed."""
     res = await premium_coll.delete_one({"user_id": int(user_id)})
     return res.deleted_count > 0
 
 
-# Get premium expiry datetime
 async def get_premium_expiry(user_id: int):
     """Return expiry datetime in UTC or None"""
     doc = await premium_coll.find_one({"user_id": int(user_id)})
@@ -79,7 +76,6 @@ async def get_premium_expiry(user_id: int):
     return doc.get("expires_at")
 
 
-# Check if user is premium
 async def is_premium(user_id: int) -> bool:
     """Check if user is premium (expiry in future)."""
     doc = await premium_coll.find_one({"user_id": int(user_id)})
@@ -90,79 +86,110 @@ async def is_premium(user_id: int) -> bool:
         return False
     now = await _now_utc()
     return expires_at > now
-#-----------------------
 
-#Pyrogram command handlers
 
 #-----------------------
+# Pyrogram command handlers
+#-----------------------
 
-The plugin uses class decorator style used in the repo (Client.on_message)
+@Client.on_message(filters.command("add_premium") & filters.user(ADMINS))
+async def _cmd_add_premium(c: Client, m: Message):
+    """Usage: /add_premium <user_id> <days> or reply with /add_premium <days>"""
+    args = m.text.split()
+    target_id = None
+    days = None
 
-@Client.on_message(filters.command("add_premium") & filters.user(ADMINS)) async def _cmd_add_premium(c: Client, m: Message): """Usage: /add_premium <user_id> <days> or reply to a user with: /add_premium <days> """ args = m.text.split() target_id = None days = None
+    if m.reply_to_message:
+        target_id = m.reply_to_message.from_user.id
+        if len(args) >= 2:
+            try:
+                days = int(args[1])
+            except Exception:
+                days = None
+    else:
+        if len(args) >= 3:
+            try:
+                target_id = int(args[1])
+                days = int(args[2])
+            except Exception:
+                await m.reply_text("Usage: /add_premium <user_id> <days> (or reply with /add_premium <days>)")
+                return
 
-# If admin replied to a user's message, use that user's id
-if m.reply_to_message:
-    target_id = m.reply_to_message.from_user.id
-    if len(args) >= 2:
-        try:
-            days = int(args[1])
-        except Exception:
-            days = None
-else:
-    if len(args) >= 3:
+    if not target_id or not days:
+        await m.reply_text("Usage: /add_premium <user_id> <days> (or reply with /add_premium <days>)")
+        return
+
+    new_expiry = await add_premium(target_id, days)
+    await m.reply_text(f"✅ Added premium to `{target_id}` for {days} day(s). Expires at: {new_expiry.isoformat()}")
+
+
+@Client.on_message(filters.command("remove_premium") & filters.user(ADMINS))
+async def _cmd_remove_premium(c: Client, m: Message):
+    """Usage: /remove_premium <user_id> or reply to a user"""
+    args = m.text.split()
+    target_id = None
+
+    if m.reply_to_message:
+        target_id = m.reply_to_message.from_user.id
+    elif len(args) >= 2:
         try:
             target_id = int(args[1])
-            days = int(args[2])
         except Exception:
-            await m.reply_text("Usage: /add_premium <user_id> <days>  (or reply with /add_premium <days>)")
+            await m.reply_text("Usage: /remove_premium <user_id> (or reply to a user)")
             return
 
-if not target_id or not days:
-    await m.reply_text("Usage: /add_premium <user_id> <days>  (or reply with /add_premium <days>)")
-    return
+    if not target_id:
+        await m.reply_text("Usage: /remove_premium <user_id> (or reply to a user)")
+        return
 
-new_expiry = await add_premium(target_id, days)
-await m.reply_text(f"✅ Added premium to `{target_id}` for {days} day(s). Expires at: {new_expiry.isoformat()}")
+    removed = await remove_premium(target_id)
+    if removed:
+        await m.reply_text(f"✅ Premium removed for `{target_id}`")
+    else:
+        await m.reply_text(f"ℹ️ No premium record found for `{target_id}`")
 
-@Client.on_message(filters.command("remove_premium") & filters.user(ADMINS)) async def _cmd_remove_premium(c: Client, m: Message): """Usage: /remove_premium <user_id> or reply to a user""" args = m.text.split() target_id = None if m.reply_to_message: target_id = m.reply_to_message.from_user.id else: if len(args) >= 2: try: target_id = int(args[1]) except Exception: await m.reply_text("Usage: /remove_premium <user_id> (or reply to a user)") return
 
-if not target_id:
-    await m.reply_text("Usage: /remove_premium <user_id> (or reply to a user)")
-    return
+@Client.on_message(filters.command("check_premium") & filters.user(ADMINS))
+async def _cmd_check_premium(c: Client, m: Message):
+    """Usage: /check_premium <user_id> or reply to a user"""
+    args = m.text.split()
+    target_id = None
 
-removed = await remove_premium(target_id)
-if removed:
-    await m.reply_text(f"✅ Premium removed for `{target_id}`")
-else:
-    await m.reply_text(f"ℹ️ No premium record found for `{target_id}`")
+    if m.reply_to_message:
+        target_id = m.reply_to_message.from_user.id
+    elif len(args) >= 2:
+        try:
+            target_id = int(args[1])
+        except Exception:
+            await m.reply_text("Usage: /check_premium <user_id> (or reply to a user)")
+            return
 
-@Client.on_message(filters.command("check_premium") & filters.user(ADMINS)) async def _cmd_check_premium(c: Client, m: Message): """Usage: /check_premium <user_id> or reply to a user""" args = m.text.split() target_id = None if m.reply_to_message: target_id = m.reply_to_message.from_user.id else: if len(args) >= 2: try: target_id = int(args[1]) except Exception: await m.reply_text("Usage: /check_premium <user_id> (or reply to a user)") return
+    if not target_id:
+        await m.reply_text("Usage: /check_premium <user_id> (or reply to a user)")
+        return
 
-if not target_id:
-    await m.reply_text("Usage: /check_premium <user_id> (or reply to a user)")
-    return
+    expiry = await get_premium_expiry(target_id)
+    if expiry and expiry > datetime.now(timezone.utc):
+        await m.reply_text(f"✅ User `{target_id}` is premium. Expires at: {expiry.isoformat()}")
+    else:
+        await m.reply_text(f"❌ User `{target_id}` is not premium or subscription expired.")
 
-expiry = await get_premium_expiry(target_id)
-if expiry and expiry > datetime.now(timezone.utc):
-    await m.reply_text(f"✅ User `{target_id}` is premium. Expires at: {expiry.isoformat()}")
-else:
-    await m.reply_text(f"❌ User `{target_id}` is not premium or subscription expired.")
-
-Optional: background task to clean expired docs (not necessary but useful)
-
-async def _cleanup_expired_task(interval_hours: int = 24): while True: try: now = datetime.now(timezone.utc) await premium_coll.delete_many({"expires_at": {"$lte": now}}) except Exception: pass await asyncio.sleep(interval_hours * 3600)
-
-If you want this task to run, import and schedule it from your main app startup code:
-
-import asyncio
-
-from plugins.premium import _cleanup_expired_task
-
-asyncio.create_task(_cleanup_expired_task())
 
 #-----------------------
-
-#End of plugin
-
+# Optional background task to clean expired premium users
 #-----------------------
 
+async def _cleanup_expired_task(interval_hours: int = 24):
+    while True:
+        try:
+            now = datetime.now(timezone.utc)
+            await premium_coll.delete_many({"expires_at": {"$lte": now}})
+        except Exception:
+            pass
+        await asyncio.sleep(interval_hours * 3600)
+
+
+# To run this task, import and schedule from main startup:
+# import asyncio
+# from plugins.premium import _cleanup_expired_task
+# asyncio.create_task(_cleanup_expired_task())
