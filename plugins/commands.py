@@ -58,43 +58,73 @@ TUTORIAL_URL = "https://t.me/YourHelpChannel"
 BUY_PREMIUM_URL = "https://t.me/YourSupportBot"
 PREVIEW_IMAGE = "https://cdn-icons-png.flaticon.com/512/545/545674.png"
 
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+import base64
+from plugins.database import unpack_new_file_id
+from plugins.users_api import is_premium, get_user, make_shortlink
+from config import LOG_CHANNEL, PREVIEW_IMAGE, TUTORIAL_URL, BUY_PREMIUM_URL
+
 @Client.on_message(filters.command("start") & filters.private)
 async def start_handler(client, message):
     user_id = message.from_user.id
     args = message.text.split(" ", 1)
 
-    # Agar user ne start ke saath file_id diya hai
+    # Agar start ke saath koi file ID hai
     if len(args) > 1:
-        file_id = args[1]
-        file_data = await get_file_details(file_id)   # DB se file nikaalna
-        if not file_data:
-            await message.reply_text("❌ File not found.")
+        encoded = args[1]
+        try:
+            decoded = base64.urlsafe_b64decode(encoded + "==").decode()
+        except Exception:
+            await message.reply_text("❌ Invalid link.")
             return
 
-        # Premium check
-        if await is_premium(user_id):
-            # Agar premium hai to direct file
-            await client.send_cached_media(
-                chat_id=message.chat.id,
-                file_id=file_data["file_id"],
-                caption=file_data.get("caption", "Here is your file ✅")
-            )
-        else:
-            # Free user ke liye shortlink generate
-            original_url = f"https://t.me/{client.me.username}?start={file_id}"
-            short_url = await make_shortlink(original_url)
+        # Batch file handling
+        if decoded.startswith("BATCH-"):
+            batch_file_id = decoded.split("-")[1]
+            try:
+                msg = await client.get_messages(LOG_CHANNEL, int(batch_file_id))
+                f = await msg.download()
+                with open(f, "r") as jf:
+                    files = json.load(jf)
+                for file_info in files:
+                    await client.send_cached_media(
+                        chat_id=message.chat.id,
+                        file_id=file_info["file_id"],
+                        caption=file_info.get("caption", "")
+                    )
+                os.remove(f)
+            except Exception:
+                await message.reply_text("❌ Batch file not found.")
+            return
 
-            await message.reply_photo(
-                photo=PREVIEW_IMAGE,
-                caption="⚡ Get your file by completing the step below",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🔗 Open Link", url=short_url)],
-                    [InlineKeyboardButton("📖 Tutorial", url=TUTORIAL_URL)],
-                    [InlineKeyboardButton("💎 Buy Premium", url=BUY_PREMIUM_URL)]
-                ])
-            )
+        # Normal single file handling
+        if decoded.startswith("file_") or decoded.startswith("filep_"):
+            try:
+                msg = await client.get_messages(LOG_CHANNEL, int(decoded.split("_")[1]))
+                # Premium check
+                if await is_premium(user_id):
+                    await client.send_cached_media(
+                        chat_id=message.chat.id,
+                        file_id=msg.document.file_id if msg.document else msg.video.file_id,
+                        caption=msg.caption or "Here is your file ✅"
+                    )
+                else:
+                    # Free users -> shortlink
+                    original_url = f"https://t.me/{client.me.username}?start={encoded}"
+                    short_url = await make_shortlink(original_url)
+                    await message.reply_photo(
+                        photo=PREVIEW_IMAGE,
+                        caption="⚡ Get your file by completing the step below",
+                        reply_markup=InlineKeyboardMarkup([
+                            [InlineKeyboardButton("🔗 Open Link", url=short_url)],
+                            [InlineKeyboardButton("📖 Tutorial", url=TUTORIAL_URL)],
+                            [InlineKeyboardButton("💎 Buy Premium", url=BUY_PREMIUM_URL)]
+                        ])
+                    )
+            except Exception:
+                await message.reply_text("❌ File not found in storage.")
     else:
-        # Normal /start command (without file)
+        # Normal start
         await message.reply_text(
             "👋 Welcome to File Store Bot!\n\n"
             "📂 Send me any file and I will give you a sharable link.\n\n"
