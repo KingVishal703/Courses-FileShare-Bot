@@ -4,7 +4,7 @@ from motor.motor_asyncio import AsyncIOMotorClient from pyrogram import Client, 
 
 Try to read config from repo config.py; fallback to env variables
 
-try: from config import MONGO_DB_URL, ADMINS except Exception: MONGO_DB_URL = os.environ.get("MONGO_DB_URL") # ADMINS expected as list of ints or single int; fallback to environment comma-separated adm = os.environ.get("ADMINS", "") if adm: ADMINS = [int(x.strip()) for x in adm.split(",") if x.strip()] else: ADMINS = []
+try: from config import MONGO_DB_URL, ADMINS except Exception: MONGO_DB_URL = os.environ.get("mongodb+srv://bevag22776:LTYSLtfLKt2KCMnD@cluster0.6z90l.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0") # ADMINS expected as list of ints or single int; fallback to environment comma-separated adm = os.environ.get("ADMINS", "") if adm: ADMINS = [int(x.strip()) for x in adm.split(",") if x.strip()] else: ADMINS = []
 
 if not MONGO_DB_URL: raise RuntimeError("MONGO_DB_URL is required in config.py or environment variables")
 
