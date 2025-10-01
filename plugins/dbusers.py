@@ -62,30 +62,29 @@ class Database:
 
 from datetime import datetime
 
-    async def add_premium_user(self, user_id: int, expiry_date: datetime):
-        # Store premium info with expiry date
-        await self.col.update_one(
-            {"id": user_id},
-            {"$set": {"premium": True, "premium_expiry": expiry_date}},
-            upsert=True,
-        )
+async def add_premium_user(self, user_id: int, expiry_date: datetime):
+    await self.col.update_one(
+        {"id": user_id},
+        {"$set": {"premium": True, "premium_expiry": expiry_date}},
+        upsert=True,
+    )
 
-    async def remove_premium_user(self, user_id: int):
-        await self.col.update_one(
-            {"id": user_id},
-            {"$set": {"premium": False, "premium_expiry": None}},
-        )
+async def remove_premium_user(self, user_id: int):
+    await self.col.update_one(
+        {"id": user_id},
+        {"$set": {"premium": False, "premium_expiry": None}},
+    )
 
-    async def check_premium(self, user_id: int):
-        user = await self.col.find_one({"id": user_id})
-        if user and user.get("premium") and user.get("premium_expiry"):
-            if user["premium_expiry"] > datetime.utcnow():
-                return True, user["premium_expiry"]
-            else:
-                # Premium expired, reset
-                await self.remove_premium_user(user_id)
-                return False, None
-        return False, None
+async def check_premium(self, user_id: int):
+    user = await self.col.find_one({"id": user_id})
+    if user and user.get("premium") and user.get("premium_expiry"):
+        if user["premium_expiry"] > datetime.utcnow():
+            return True, user["premium_expiry"]
+        else:
+            await self.remove_premium_user(user_id)
+            return False, None
+    return False, None
+    
         
 
 
