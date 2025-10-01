@@ -1,3 +1,5 @@
+# plugins/genlink.py
+
 # Credit: @VJ_Botz | YouTube: @Tech_VJ | Telegram: @KingVJ01
 
 import re
@@ -7,14 +9,18 @@ import base64
 import logging
 
 from pyrogram import filters, Client, enums
-from pyrogram.errors import ChannelInvalid, UsernameInvalid, UsernameNotModified
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from config import ADMINS, LOG_CHANNEL, PUBLIC_FILE_STORE, WEBSITE_URL, WEBSITE_URL_MODE
+from plugins.users_api import get_user, get_short_link, is_premium, make_shortlink
 from plugins.database import unpack_new_file_id
-from plugins.users_api import get_user, get_short_link
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+PREVIEW_IMAGE = "https://telegra.ph/file/preview_image.jpg"
+TUTORIAL_URL = "https://t.me/tutorial_channel"
+BUY_PREMIUM_URL = "https://t.me/buy_premium"
 
 
 async def allowed(_, __, message):
@@ -38,7 +44,15 @@ async def store_file_to_log_channel(bot, message):
             post = await bot.send_audio(LOG_CHANNEL, media_attr.file_id, caption=caption)
         else:
             return None
-        return post.document.file_id if post.document else (post.video.file_id if post.video else post.audio.file_id)
+        # Return actual file_id
+        if post.document:
+            return post.document.file_id
+        elif post.video:
+            return post.video.file_id
+        elif post.audio:
+            return post.audio.file_id
+        else:
+            return None
     except Exception as e:
         logger.error(f"Error storing file to log channel: {e}")
         return None
@@ -48,6 +62,7 @@ async def store_file_to_log_channel(bot, message):
 async def incoming_gen_link(bot, message):
     try:
         username = (await bot.get_me()).username
+
         # Upload file to log channel
         log_file_id = await store_file_to_log_channel(bot, message)
         if not log_file_id:
@@ -114,3 +129,60 @@ async def gen_link_s(bot, message):
     except Exception as e:
         logger.error(f"Error in gen_link_s: {e}")
         await message.reply(f"❌ Failed to generate link: {e}")
+
+
+@Client.on_message(filters.command("start") & filters.private)
+async def start_handler(client, message):
+    user_id = message.from_user.id
+    args = message.text.split(" ", 1)
+
+    if len(args) > 1:
+        encoded = args[1]
+        try:
+            decoded = base64.urlsafe_b64decode(encoded + "==").decode()
+        except:
+            return await message.reply_text("❌ Invalid link.")
+
+        if decoded.startswith("file_") or decoded.startswith("filep_") or decoded.startswith("BATCH-"):
+            msg_id_part = decoded.split("_")[1] if "_" in decoded else decoded.split("-")[1]
+            try:
+                msg_id = int(msg_id_part)
+            except:
+                return await message.reply_text("❌ Invalid file identifier.")
+
+            try:
+                msg = await client.get_messages(LOG_CHANNEL, msg_id)
+                if not msg or not msg.media:
+                    return await message.reply_text("❌ File not found in storage.😭")
+
+                # Premium check
+                if await is_premium(user_id):
+                    media_attr = getattr(msg, msg.media.value)
+                    await client.send_cached_media(
+                        chat_id=message.chat.id,
+                        file_id=media_attr.file_id,
+                        caption=msg.caption or "Here is your file ✅"
+                    )
+                else:
+                    original_url = f"https://t.me/{client.me.username}?start={encoded}"
+                    short_url = await make_shortlink(original_url)
+                    await message.reply_photo(
+                        photo=PREVIEW_IMAGE,
+                        caption="⚡ Get your file by completing the step below",
+                        reply_markup=InlineKeyboardMarkup([
+                            [InlineKeyboardButton("🔗 Open Link", url=short_url)],
+                            [InlineKeyboardButton("📖 Tutorial", url=TUTORIAL_URL)],
+                            [InlineKeyboardButton("💎 Buy Premium", url=BUY_PREMIUM_URL)]
+                        ])
+                    )
+            except Exception as e:
+                await message.reply_text(f"❌ File not found in storage.😭\nError: {e}")
+        else:
+            await message.reply_text("❌ Invalid link.")
+    else:
+        await message.reply_text(
+            "👋 Welcome to File Store Bot!\n\n"
+            "📂 Send me any file and I will give you a sharable link.\n\n"
+            "🆓 Free users: Get files via shortlink.\n"
+            "💎 Premium users: Get direct downloads without ads."
+            )
