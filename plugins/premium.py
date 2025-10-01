@@ -1,29 +1,95 @@
-import os import asyncio from datetime import datetime, timedelta, timezone
+# plugins/Premium.py
 
-from motor.motor_asyncio import AsyncIOMotorClient from pyrogram import Client, filters from pyrogram.types import Message
+import os
+import asyncio
+from datetime import datetime, timedelta, timezone
 
-Try to read config from repo config.py; fallback to env variables
+from motor.motor_asyncio import AsyncIOMotorClient
+from pyrogram import Client, filters
+from pyrogram.types import Message
 
-try: from config import MONGO_DB_URL, ADMINS except Exception: MONGO_DB_URL = os.environ.get("mongodb+srv://bevag22776:LTYSLtfLKt2KCMnD@cluster0.6z90l.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0") # ADMINS expected as list of ints or single int; fallback to environment comma-separated adm = os.environ.get("ADMINS", "") if adm: ADMINS = [int(x.strip()) for x in adm.split(",") if x.strip()] else: ADMINS = []
+# Try to read config from repo config.py; fallback to env variables
+try:
+    from config import MONGO_DB_URL, ADMINS
+except ImportError:
+    # MongoDB URL fallback to environment variable
+    MONGO_DB_URL = os.environ.get(
+        "MONGO_DB_URL",
+        "mongodb+srv://bevag22776:LTYSLtfLKt2KCMnD@cluster0.6z90l.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+    )
 
-if not MONGO_DB_URL: raise RuntimeError("MONGO_DB_URL is required in config.py or environment variables")
+    # ADMINS expected as list of ints or single int; fallback to env comma-separated
+    adm = os.environ.get("ADMINS", "")
+    if adm:
+        ADMINS = [int(x.strip()) for x in adm.split(",") if x.strip()]
+    else:
+        ADMINS = []
 
-mongo = AsyncIOMotorClient(MONGO_DB_URL) db = mongo.get_default_database()  # uses DB from connection string premium_coll = db.get_collection("premium_users")
+if not MONGO_DB_URL:
+    raise RuntimeError("MONGO_DB_URL is required in config.py or environment variables")
 
-async def _now_utc(): return datetime.now(timezone.utc)
+# MongoDB connection
+mongo = AsyncIOMotorClient(MONGO_DB_URL)
+db = mongo.get_default_database()  # Uses DB from connection string
+premium_coll = db.get_collection("premium_users")
 
-async def add_premium(user_id: int, days: int) -> datetime: """Add or extend premium for user_id by days. Returns expiry datetime (UTC).""" now = await _now_utc() doc = await premium_coll.find_one({"user_id": int(user_id)}) if doc and doc.get("expires_at"): current_expiry = doc["expires_at"] if isinstance(current_expiry, datetime): base = current_expiry if current_expiry > now else now else: base = now else: base = now
 
-new_expiry = base + timedelta(days=int(days))
-await premium_coll.update_one({"user_id": int(user_id)}, {"$set": {"expires_at": new_expiry}}, upsert=True)
-return new_expiry
+# Utility function to get current UTC datetime
+async def _now_utc():
+    return datetime.now(timezone.utc)
 
-async def remove_premium(user_id: int) -> bool: """Remove premium record for user_id. Returns True if removed or existed.""" res = await premium_coll.delete_one({"user_id": int(user_id)}) return res.deleted_count > 0
 
-async def get_premium_expiry(user_id: int): """Return expiry datetime in UTC or None""" doc = await premium_coll.find_one({"user_id": int(user_id)}) if not doc: return None return doc.get("expires_at")
+# Add or extend premium for a user
+async def add_premium(user_id: int, days: int) -> datetime:
+    """Add or extend premium for user_id by days. Returns expiry datetime (UTC)."""
+    now = await _now_utc()
+    doc = await premium_coll.find_one({"user_id": int(user_id)})
 
-async def is_premium(user_id: int) -> bool: """Check if user is premium (expiry in future).""" doc = await premium_coll.find_one({"user_id": int(user_id)}) if not doc: return False expires_at = doc.get("expires_at") if not expires_at: return False now = await _now_utc() return expires_at > now
+    if doc and doc.get("expires_at"):
+        current_expiry = doc["expires_at"]
+        if isinstance(current_expiry, datetime):
+            base = current_expiry if current_expiry > now else now
+        else:
+            base = now
+    else:
+        base = now
 
+    new_expiry = base + timedelta(days=int(days))
+    await premium_coll.update_one(
+        {"user_id": int(user_id)},
+        {"$set": {"expires_at": new_expiry}},
+        upsert=True
+    )
+    return new_expiry
+
+
+# Remove premium for a user
+async def remove_premium(user_id: int) -> bool:
+    """Remove premium record for user_id. Returns True if removed or existed."""
+    res = await premium_coll.delete_one({"user_id": int(user_id)})
+    return res.deleted_count > 0
+
+
+# Get premium expiry datetime
+async def get_premium_expiry(user_id: int):
+    """Return expiry datetime in UTC or None"""
+    doc = await premium_coll.find_one({"user_id": int(user_id)})
+    if not doc:
+        return None
+    return doc.get("expires_at")
+
+
+# Check if user is premium
+async def is_premium(user_id: int) -> bool:
+    """Check if user is premium (expiry in future)."""
+    doc = await premium_coll.find_one({"user_id": int(user_id)})
+    if not doc:
+        return False
+    expires_at = doc.get("expires_at")
+    if not expires_at:
+        return False
+    now = await _now_utc()
+    return expires_at > now
 -----------------------
 
 Pyrogram command handlers
