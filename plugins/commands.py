@@ -58,11 +58,6 @@ TUTORIAL_URL = "https://t.me/YourHelpChannel"
 BUY_PREMIUM_URL = "https://t.me/YourSupportBot"
 PREVIEW_IMAGE = "https://cdn-icons-png.flaticon.com/512/545/545674.png"
 
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-import base64
-from plugins.database import unpack_new_file_id
-from plugins.users_api import is_premium, get_user, make_shortlink
-from config import LOG_CHANNEL, PREVIEW_IMAGE, TUTORIAL_URL, BUY_PREMIUM_URL
 
 @Client.on_message(filters.command("start") & filters.private)
 async def start_handler(client, message):
