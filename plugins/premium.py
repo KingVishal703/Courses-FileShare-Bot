@@ -8,13 +8,16 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pyrogram import Client, filters
 from pyrogram.types import Message
 
-# Try to read config from repo config.py; fallback to env variables
+#-----------------------
+# Config / Environment
+#-----------------------
 try:
     from config import MONGO_DB_URL, ADMINS
 except ImportError:
+    # MongoDB connection with default DB name
     MONGO_DB_URL = os.environ.get(
         "MONGO_DB_URL",
-        "mongodb+srv://bevag22776:LTYSLtfLKt2KCMnD@cluster0.6z90l.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+        "mongodb+srv://bevag22776:LTYSLtfLKt2KCMnD@cluster0.6z90l.mongodb.net/premium_bot?retryWrites=true&w=majority"
     )
     adm = os.environ.get("ADMINS", "5654093580")
     if adm:
@@ -25,16 +28,16 @@ except ImportError:
 if not MONGO_DB_URL:
     raise RuntimeError("MONGO_DB_URL is required in config.py or environment variables")
 
+#-----------------------
 # MongoDB connection
+#-----------------------
 mongo = AsyncIOMotorClient(MONGO_DB_URL)
-db = mongo.get_default_database()
+db = mongo.get_database()  # explicitly get database from URL
 premium_coll = db.get_collection("premium_users")
-
 
 #-----------------------
 # Utility functions
 #-----------------------
-
 async def _now_utc():
     return datetime.now(timezone.utc)
 
@@ -46,10 +49,7 @@ async def add_premium(user_id: int, days: int) -> datetime:
 
     if doc and doc.get("expires_at"):
         current_expiry = doc["expires_at"]
-        if isinstance(current_expiry, datetime):
-            base = current_expiry if current_expiry > now else now
-        else:
-            base = now
+        base = current_expiry if isinstance(current_expiry, datetime) and current_expiry > now else now
     else:
         base = now
 
@@ -87,11 +87,9 @@ async def is_premium(user_id: int) -> bool:
     now = await _now_utc()
     return expires_at > now
 
-
 #-----------------------
 # Pyrogram command handlers
 #-----------------------
-
 @Client.on_message(filters.command("add_premium") & filters.user(ADMINS))
 async def _cmd_add_premium(c: Client, m: Message):
     """Usage: /add_premium <user_id> <days> or reply with /add_premium <days>"""
@@ -178,7 +176,6 @@ async def _cmd_check_premium(c: Client, m: Message):
 #-----------------------
 # Optional background task to clean expired premium users
 #-----------------------
-
 async def _cleanup_expired_task(interval_hours: int = 24):
     while True:
         try:
@@ -188,8 +185,7 @@ async def _cleanup_expired_task(interval_hours: int = 24):
             pass
         await asyncio.sleep(interval_hours * 3600)
 
-
-# To run this task, import and schedule from main startup:
+# To run task from main app:
 # import asyncio
 # from plugins.premium import _cleanup_expired_task
 # asyncio.create_task(_cleanup_expired_task())
