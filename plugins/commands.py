@@ -64,18 +64,29 @@ async def start_handler(client, message):
     user_id = message.from_user.id
     args = message.text.split(" ", 1)
 
+    # Function to safely decode base64
+    def safe_b64decode(data: str):
+        try:
+            missing_padding = len(data) % 4
+            if missing_padding:
+                data += "=" * (4 - missing_padding)
+            return base64.urlsafe_b64decode(data).decode()
+        except Exception:
+            return None
+
     # Agar start ke saath file ID ya batch ID hai
     if len(args) > 1:
         encoded = args[1]
-        try:
-            decoded = base64.urlsafe_b64decode(encoded + "==").decode()
-        except Exception:
-            await message.reply_text("❌ Invalid link.")
-            return
+        decoded = safe_b64decode(encoded)
+        if not decoded:
+            return await message.reply_text("❌ Invalid link.")
 
         # ---------------- Batch file handling ----------------
         if decoded.startswith("BATCH-"):
-            batch_file_id = int(decoded.split("-")[1])
+            batch_id_part = decoded.split("-")[1]
+            if not batch_id_part.isdigit():
+                return await message.reply_text("❌ Invalid batch file identifier.")
+            batch_file_id = int(batch_id_part)
             try:
                 msg = await client.get_messages(LOG_CHANNEL, batch_file_id)
                 if not msg or not msg.document:
@@ -84,27 +95,30 @@ async def start_handler(client, message):
                 with open(local_file, "r") as jf:
                     files = json.load(jf)
                 for file_info in files:
-                    file_type = None
-                    if "file_id" in file_info:
-                        try:
+                    try:
+                        file_attr_id = file_info.get("file_id")
+                        if file_attr_id:
                             await client.send_cached_media(
                                 chat_id=message.chat.id,
-                                file_id=file_info["file_id"],
+                                file_id=file_attr_id,
                                 caption=file_info.get("caption", "")
                             )
-                        except:
-                            continue
+                    except Exception:
+                        continue
                 os.remove(local_file)
             except Exception:
-                await message.reply_text("❌ Failed to fetch batch file.")
+                return await message.reply_text("❌ Failed to fetch batch file.")
             return
 
         # ---------------- Single file handling ----------------
         if decoded.startswith("file_") or decoded.startswith("filep_"):
+            file_id_part = decoded.split("_")[1] if "_" in decoded else None
+            if not file_id_part or not file_id_part.isdigit():
+                return await message.reply_text("❌ Invalid file identifier.")
+            file_msg_id = int(file_id_part)
             try:
-                file_msg_id = int(decoded.split("_")[1])
                 msg = await client.get_messages(LOG_CHANNEL, file_msg_id)
-                if not msg:
+                if not msg or not msg.media:
                     return await message.reply_text("❌ File not found in storage.")
 
                 # Premium user -> direct file
@@ -129,7 +143,7 @@ async def start_handler(client, message):
                         ])
                     )
             except Exception:
-                await message.reply_text("❌ File not found in storage.")
+                return await message.reply_text("❌ File not found in storage.")
             return
 
     # ---------------- Normal /start ----------------
@@ -138,7 +152,7 @@ async def start_handler(client, message):
         "📂 Send me any file and I will give you a sharable link.\n\n"
         "🆓 Free users: Get files via shortlink.\n"
         "💎 Premium users: Get direct downloads without ads."
-                    )
+    )
                 
 
 @Client.on_message(filters.command('api') & filters.private)
