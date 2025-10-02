@@ -30,7 +30,14 @@ async def incoming_gen_link(bot, message):
         file_type = message.media
         media_file = getattr(message, file_type.value)
 
+        logger.info(f"📥 Received file: {file_type}, ID: {media_file.file_id}")
+
         file_id, file_ref = unpack_new_file_id(media_file.file_id)
+        logger.info(f"🗂️ Decoded file_id={file_id}, file_ref={file_ref}")
+
+        if not file_id:
+            return await message.reply("❌ Failed to decode file_id")
+
         await save_file(
             file_id=file_id,
             file_ref=file_ref,
@@ -45,26 +52,26 @@ async def incoming_gen_link(bot, message):
 
         string = 'file_' + file_id
         outstr = base64.urlsafe_b64encode(string.encode("ascii")).decode().strip("=")
+        share_link = f"https://t.me/{username}?start={outstr}"
 
-        if WEBSITE_URL_MODE:
-            share_link = f"{WEBSITE_URL}?Tech_VJ={outstr}"
-        else:
-            share_link = f"https://t.me/{username}?start={outstr}"
+        logger.info(f"🔗 Generated share link: {share_link}")
 
         user_id = message.from_user.id
         premium_user = await is_premium(user_id)
+        logger.info(f"👤 User {user_id} premium={premium_user}")
 
         if premium_user:
             reply_text = f"💎 <b>Premium User</b>\n\n🔗 Direct Link:\n{share_link}"
         else:
             short_link = await make_shortlink(share_link)
+            logger.info(f"🔗 Short link result: {short_link}")
             reply_text = f"⭕ <b>Your Link:</b>\n\n🖇️ {short_link}"
 
-        logger.info(f"✅ Link generated for {file_id}: {reply_text}")
         await message.reply(reply_text)
+        logger.info("✅ Reply sent successfully")
 
     except Exception as e:
-        logger.error(f"Error in incoming_gen_link: {e}")
+        logger.error(f"Error in incoming_gen_link: {e}", exc_info=True)
         await message.reply("⚠️ Failed to generate link. Please try again.")
 
 
@@ -115,4 +122,5 @@ async def gen_link_s(bot, message):
         reply_text = f"<b>⭕ Here is your link:</b>\n\n🖇️ Short Link: {short_link}"
 
     await message.reply(reply_text)
+
 
