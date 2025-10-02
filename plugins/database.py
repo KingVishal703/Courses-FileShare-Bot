@@ -28,13 +28,12 @@ instance = Instance.from_db(db)
 class Media(Document):
     file_id = fields.StrField(attribute='_id', unique=True)
     file_ref = fields.StrField(allow_none=True)
-    file_name = fields.StrField(required=True)
+    file_name = fields.StrField(allow_none=True)   # 🔹 required=False kar diya
     file_size = fields.IntField(required=True)
     file_type = fields.StrField(allow_none=True)
     mime_type = fields.StrField(allow_none=True)
     caption = fields.StrField(allow_none=True)
 
-    # ✅ Extra fields to re-fetch from original chat if needed
     chat_id = fields.IntField(required=True)
     msg_id = fields.IntField(required=True)
 
@@ -47,13 +46,22 @@ class Media(Document):
 async def save_file(file_id, file_ref, file_name, file_size, file_type,
                     mime_type, caption, chat_id, msg_id):
     try:
+        # Agar file_name missing ho to default naam set karo
+        if not file_name:
+            if mime_type and "video" in mime_type:
+                file_name = f"video_{file_id}.mp4"
+            elif mime_type and "image" in mime_type:
+                file_name = f"image_{file_id}.jpg"
+            else:
+                file_name = f"file_{file_id}"
+
         media = Media(
             file_id=file_id,
             file_ref=file_ref,
             file_name=file_name,
-            file_size=file_size,
-            file_type=file_type,
-            mime_type=mime_type,
+            file_size=file_size or 0,
+            file_type=file_type or "unknown",
+            mime_type=mime_type or "application/octet-stream",
             caption=caption,
             chat_id=chat_id,
             msg_id=msg_id
@@ -65,7 +73,7 @@ async def save_file(file_id, file_ref, file_name, file_size, file_type,
         logger.warning(f"⚠️ File already exists in DB: {file_id}")
     except Exception as e:
         logger.error(f"❌ Error saving file to DB: {e}")
-
+        
 
 # ✅ Fetch file details by file_id
 async def get_file_details(query):
