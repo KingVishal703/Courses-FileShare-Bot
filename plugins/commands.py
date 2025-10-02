@@ -58,102 +58,50 @@ TUTORIAL_URL = "https://t.me/YourHelpChannel"
 BUY_PREMIUM_URL = "https://t.me/YourSupportBot"
 PREVIEW_IMAGE = "https://cdn-icons-png.flaticon.com/512/545/545674.png"
 
-
 @Client.on_message(filters.command("start") & filters.private)
 async def start_handler(client, message):
     user_id = message.from_user.id
     args = message.text.split(" ", 1)
 
-    # Function to safely decode base64
-    def safe_b64decode(data: str):
-        try:
-            missing_padding = len(data) % 4
-            if missing_padding:
-                data += "=" * (4 - missing_padding)
-            return base64.urlsafe_b64decode(data).decode()
-        except Exception:
-            return None
-
-    # Agar start ke saath file ID ya batch ID hai
+    # Agar user ne start ke saath file_id diya hai
     if len(args) > 1:
-        encoded = args[1]
-        decoded = safe_b64decode(encoded)
-        if not decoded:
-            return await message.reply_text("❌ Invalid link.")
-
-        # ---------------- Batch file handling ----------------
-        if decoded.startswith("BATCH-"):
-            batch_id_part = decoded.split("-")[1]
-            if not batch_id_part.isdigit():
-                return await message.reply_text("❌ Invalid batch file identifier.")
-            batch_file_id = int(batch_id_part)
-            try:
-                msg = await client.get_messages(LOG_CHANNEL, batch_file_id)
-                if not msg or not msg.document:
-                    return await message.reply_text("❌ Batch file not found in storage.")
-                local_file = await msg.download()
-                with open(local_file, "r") as jf:
-                    files = json.load(jf)
-                for file_info in files:
-                    try:
-                        file_attr_id = file_info.get("file_id")
-                        if file_attr_id:
-                            await client.send_cached_media(
-                                chat_id=message.chat.id,
-                                file_id=file_attr_id,
-                                caption=file_info.get("caption", "")
-                            )
-                    except Exception:
-                        continue
-                os.remove(local_file)
-            except Exception:
-                return await message.reply_text("❌ Failed to fetch batch file.")
+        file_id = args[1]
+        file_data = await get_file_details(file_id)   # DB se file nikaalna
+        if not file_data:
+            await message.reply_text("❌ File not found.")
             return
 
-        # ---------------- Single file handling ----------------
-        if decoded.startswith("file_") or decoded.startswith("filep_"):
-            file_id_part = decoded.split("_")[1] if "_" in decoded else None
-            if not file_id_part or not file_id_part.isdigit():
-                return await message.reply_text("❌ Invalid file identifier.")
-            file_msg_id = int(file_id_part)
-            try:
-                msg = await client.get_messages(LOG_CHANNEL, file_msg_id)
-                if not msg or not msg.media:
-                    return await message.reply_text("❌ File not found in storage.")
+        # Premium check
+        if await is_premium(user_id):
+            # Agar premium hai to direct file
+            await client.send_cached_media(
+                chat_id=message.chat.id,
+                file_id=file_data["file_id"],
+                caption=file_data.get("caption", "Here is your file ✅")
+            )
+        else:
+            # Free user ke liye shortlink generate
+            original_url = f"https://t.me/{client.me.username}?start={file_id}"
+            short_url = await make_shortlink(original_url)
 
-                # Premium user -> direct file
-                if await is_premium(user_id):
-                    file_attr = msg.document or msg.video or msg.audio
-                    await client.send_cached_media(
-                        chat_id=message.chat.id,
-                        file_id=file_attr.file_id,
-                        caption=msg.caption or "Here is your file ✅"
-                    )
-                else:
-                    # Free user -> shortlink + preview
-                    original_url = f"https://t.me/{client.me.username}?start={encoded}"
-                    short_url = await make_shortlink(original_url)
-                    await message.reply_photo(
-                        photo=PREVIEW_IMAGE,
-                        caption="⚡ Get your file by completing the step below",
-                        reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton("🔗 Open Link", url=short_url)],
-                            [InlineKeyboardButton("📖 Tutorial", url=TUTORIAL_URL)],
-                            [InlineKeyboardButton("💎 Buy Premium", url=BUY_PREMIUM_URL)]
-                        ])
-                    )
-            except Exception:
-                return await message.reply_text("❌ File not found in storage.")
-            return
-
-    # ---------------- Normal /start ----------------
-    await message.reply_text(
-        "👋 Welcome to File Store Bot!\n\n"
-        "📂 Send me any file and I will give you a sharable link.\n\n"
-        "🆓 Free users: Get files via shortlink.\n"
-        "💎 Premium users: Get direct downloads without ads."
-    )
-                
+            await message.reply_photo(
+                photo=PREVIEW_IMAGE,
+                caption="⚡ Get your file by completing the step below",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔗 Open Link", url=short_url)],
+                    [InlineKeyboardButton("📖 Tutorial", url=TUTORIAL_URL)],
+                    [InlineKeyboardButton("💎 Buy Premium", url=BUY_PREMIUM_URL)]
+                ])
+            )
+    else:
+        # Normal /start command (without file)
+        await message.reply_text(
+            "👋 Welcome to File Store Bot!\n\n"
+            "📂 Send me any file and I will give you a sharable link.\n\n"
+            "🆓 Free users: Get files via shortlink.\n"
+            "💎 Premium users: Get direct downloads without ads."
+        )
+        
 
 @Client.on_message(filters.command('api') & filters.private)
 async def shortener_api_handler(client, m: Message):
