@@ -12,14 +12,14 @@ logger.setLevel(logging.INFO)
 
 COLLECTION_NAME = "Telegram_Files"
 
-# MongoDB connection with error handling
+# ✅ MongoDB connection with error handling
 try:
     client = AsyncIOMotorClient(DB_URI)
     db = client[DB_NAME]
     client.admin.command('ping')
-    logger.info("MongoDB connected successfully.")
+    logger.info("✅ MongoDB connected successfully.")
 except Exception as e:
-    logger.error(f"MongoDB connection failed: {e}")
+    logger.error(f"❌ MongoDB connection failed: {e}")
 
 instance = Instance.from_db(db)
 
@@ -34,7 +34,7 @@ class Media(Document):
     mime_type = fields.StrField(allow_none=True)
     caption = fields.StrField(allow_none=True)
 
-    # ✅ New fields for safe restore
+    # ✅ Extra fields to re-fetch from original chat if needed
     chat_id = fields.IntField(required=True)
     msg_id = fields.IntField(required=True)
 
@@ -43,7 +43,7 @@ class Media(Document):
         collection_name = COLLECTION_NAME
 
 
-# ✅ Save file details
+# ✅ Save file details safely
 async def save_file(file_id, file_ref, file_name, file_size, file_type,
                     mime_type, caption, chat_id, msg_id):
     try:
@@ -59,22 +59,27 @@ async def save_file(file_id, file_ref, file_name, file_size, file_type,
             msg_id=msg_id
         )
         await media.commit()
+        logger.info(f"✅ File saved in DB: {file_name} ({file_id})")
         return media
     except DuplicateKeyError:
-        logger.warning(f"File already exists in DB: {file_id}")
+        logger.warning(f"⚠️ File already exists in DB: {file_id}")
     except Exception as e:
-        logger.error(f"Error saving file to DB: {e}")
+        logger.error(f"❌ Error saving file to DB: {e}")
 
 
-# ✅ Fetch file details
+# ✅ Fetch file details by file_id
 async def get_file_details(query):
-    filter = {'file_id': query}
-    cursor = Media.find(filter)
-    filedetails = await cursor.to_list(length=1)
-    return filedetails[0] if filedetails else None
+    try:
+        filter = {'file_id': query}
+        cursor = Media.find(filter)
+        filedetails = await cursor.to_list(length=1)
+        return filedetails[0] if filedetails else None
+    except Exception as e:
+        logger.error(f"❌ Error fetching file details: {e}")
+        return None
 
 
-# 🔹 Legacy encoding (keep for compatibility)
+# 🔹 Encode file_id (for safe reuse)
 def encode_file_id(s: bytes) -> str:
     r = b""
     n = 0
@@ -89,14 +94,18 @@ def encode_file_id(s: bytes) -> str:
     return base64.urlsafe_b64encode(r).decode().rstrip("=")
 
 
+# 🔹 Encode file_ref
 def encode_file_ref(file_ref: bytes) -> str:
     if not file_ref:
         return ""
     return base64.urlsafe_b64encode(file_ref).decode().rstrip("=")
 
 
+# ✅ Decode Telegram's new_file_id into (file_id, file_ref)
 def unpack_new_file_id(new_file_id):
-    """Return file_id, file_ref or (None, None) on error"""
+    """
+    Return (file_id, file_ref) or (None, None) if decoding fails.
+    """
     try:
         decoded = FileId.decode(new_file_id)
         file_id = encode_file_id(
@@ -111,5 +120,5 @@ def unpack_new_file_id(new_file_id):
         file_ref = encode_file_ref(decoded.file_reference)
         return file_id, file_ref
     except Exception as e:
-        logger.error(f"Failed to decode file_id '{new_file_id}': {e}")
+        logger.error(f"❌ Failed to decode file_id '{new_file_id}': {e}")
         return None, None
