@@ -34,22 +34,50 @@ class Media(Document):
     mime_type = fields.StrField(allow_none=True)
     caption = fields.StrField(allow_none=True)
 
+    # ✅ New fields for safe restore
+    chat_id = fields.IntField(required=True)
+    msg_id = fields.IntField(required=True)
+
     class Meta:
         indexes = ('$file_name', )
         collection_name = COLLECTION_NAME
 
 
+# ✅ Save file details
+async def save_file(file_id, file_ref, file_name, file_size, file_type,
+                    mime_type, caption, chat_id, msg_id):
+    try:
+        media = Media(
+            file_id=file_id,
+            file_ref=file_ref,
+            file_name=file_name,
+            file_size=file_size,
+            file_type=file_type,
+            mime_type=mime_type,
+            caption=caption,
+            chat_id=chat_id,
+            msg_id=msg_id
+        )
+        await media.commit()
+        return media
+    except DuplicateKeyError:
+        logger.warning(f"File already exists in DB: {file_id}")
+    except Exception as e:
+        logger.error(f"Error saving file to DB: {e}")
+
+
+# ✅ Fetch file details
 async def get_file_details(query):
     filter = {'file_id': query}
     cursor = Media.find(filter)
     filedetails = await cursor.to_list(length=1)
-    return filedetails[0] if filedetails else None  # Return None if not found
+    return filedetails[0] if filedetails else None
 
 
+# 🔹 Legacy encoding (keep for compatibility)
 def encode_file_id(s: bytes) -> str:
     r = b""
     n = 0
-
     for i in s + bytes([22]) + bytes([4]):
         if i == 0:
             n += 1
@@ -58,7 +86,6 @@ def encode_file_id(s: bytes) -> str:
                 r += b"\x00" + bytes([n])
                 n = 0
             r += bytes([i])
-
     return base64.urlsafe_b64encode(r).decode().rstrip("=")
 
 
