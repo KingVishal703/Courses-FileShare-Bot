@@ -26,17 +26,19 @@ async def allowed(_, __, message):
 @Client.on_message((filters.document | filters.video | filters.audio) & filters.private)
 async def incoming_gen_link(bot, message):
     try:
+        await message.reply("📥 Step 1: File received...")
+
         username = (await bot.get_me()).username
         file_type = message.media
         media_file = getattr(message, file_type.value)
 
-        logger.info(f"📥 Received file: {file_type}, ID: {media_file.file_id}")
+        await message.reply(f"📂 Step 2: Got file_type={file_type}, file_id={media_file.file_id}")
 
         file_id, file_ref = unpack_new_file_id(media_file.file_id)
-        logger.info(f"🗂️ Decoded file_id={file_id}, file_ref={file_ref}")
+        await message.reply(f"🗂️ Step 3: Decoded file_id={file_id}, file_ref={file_ref}")
 
         if not file_id:
-            return await message.reply("❌ Failed to decode file_id")
+            return await message.reply("❌ Step 3 failed: Could not decode file_id")
 
         await save_file(
             file_id=file_id,
@@ -49,30 +51,29 @@ async def incoming_gen_link(bot, message):
             chat_id=message.chat.id,
             msg_id=message.id
         )
+        await message.reply("💾 Step 4: File saved to DB")
 
         string = 'file_' + file_id
         outstr = base64.urlsafe_b64encode(string.encode("ascii")).decode().strip("=")
         share_link = f"https://t.me/{username}?start={outstr}"
-
-        logger.info(f"🔗 Generated share link: {share_link}")
+        await message.reply(f"🔗 Step 5: Generated share link: {share_link}")
 
         user_id = message.from_user.id
         premium_user = await is_premium(user_id)
-        logger.info(f"👤 User {user_id} premium={premium_user}")
+        await message.reply(f"👤 Step 6: Premium={premium_user}")
 
         if premium_user:
-            reply_text = f"💎 <b>Premium User</b>\n\n🔗 Direct Link:\n{share_link}"
+            reply_text = f"💎 Premium User\n\n🔗 Direct Link:\n{share_link}"
         else:
             short_link = await make_shortlink(share_link)
-            logger.info(f"🔗 Short link result: {short_link}")
-            reply_text = f"⭕ <b>Your Link:</b>\n\n🖇️ {short_link}"
+            await message.reply(f"🔗 Step 7: Shortlink={short_link}")
+            reply_text = f"⭕ Your Link:\n\n🖇️ {short_link}"
 
+        await message.reply("✅ Step 8: Final Reply Sent")
         await message.reply(reply_text)
-        logger.info("✅ Reply sent successfully")
 
     except Exception as e:
-        logger.error(f"Error in incoming_gen_link: {e}", exc_info=True)
-        await message.reply("⚠️ Failed to generate link. Please try again.")
+        await message.reply(f"❌ ERROR: {e}")
 
 
 @Client.on_message(filters.command(['link', 'plink']) & filters.create(allowed))
@@ -122,5 +123,6 @@ async def gen_link_s(bot, message):
         reply_text = f"<b>⭕ Here is your link:</b>\n\n🖇️ Short Link: {short_link}"
 
     await message.reply(reply_text)
+
 
 
