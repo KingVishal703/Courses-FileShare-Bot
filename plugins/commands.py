@@ -46,42 +46,51 @@ def get_size(size):
     return "%.2f %s" % (size, units[i])
 
 
-import asyncio
+import base64
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from plugins.premium import is_premium
 from plugins.shortlink import make_shortlink
-from plugins.database import get_file_details  # adjust according to your repo
+from plugins.database import get_file_details
 
 # Tutorial aur Buy Premium ke URLs config me dalna
 TUTORIAL_URL = "https://t.me/YourHelpChannel"
 BUY_PREMIUM_URL = "https://t.me/YourSupportBot"
 PREVIEW_IMAGE = "https://cdn-icons-png.flaticon.com/512/545/545674.png"
 
+
 @Client.on_message(filters.command("start") & filters.private)
 async def start_handler(client, message):
     user_id = message.from_user.id
     args = message.text.split(" ", 1)
 
-    # Agar user ne start ke saath file_id diya hai
     if len(args) > 1:
-        file_id = args[1]
-        file_data = await get_file_details(file_id)   # DB se file nikaalna
-        if not file_data:
-            await message.reply_text("❌ File not found.")
-            return
+        # ✅ base64 decode karna jaruri hai
+        try:
+            decoded = base64.urlsafe_b64decode(args[1] + "==").decode("ascii")
+        except Exception:
+            return await message.reply_text("❌ Invalid link.")
 
-        # Premium check
+        if not decoded.startswith("file_"):
+            return await message.reply_text("❌ Invalid file identifier.")
+
+        file_id = decoded.split("_", 1)[1]
+
+        # DB se file details nikaalo
+        file_data = await get_file_details(file_id)
+        if not file_data:
+            return await message.reply_text("❌ File not found.")
+
+        # ✅ Premium check
         if await is_premium(user_id):
-            # Agar premium hai to direct file
             await client.send_cached_media(
                 chat_id=message.chat.id,
                 file_id=file_data["file_id"],
                 caption=file_data.get("caption", "Here is your file ✅")
             )
         else:
-            # Free user ke liye shortlink generate
-            original_url = f"https://t.me/{client.me.username}?start={file_id}"
+            # Free user → shortlink
+            original_url = f"https://t.me/{client.me.username}?start={args[1]}"
             short_url = await make_shortlink(original_url)
 
             await message.reply_photo(
@@ -94,7 +103,7 @@ async def start_handler(client, message):
                 ])
             )
     else:
-        # Normal /start command (without file)
+        # Normal /start command
         await message.reply_text(
             "👋 Welcome to File Store Bot!\n\n"
             "📂 Send me any file and I will give you a sharable link.\n\n"
